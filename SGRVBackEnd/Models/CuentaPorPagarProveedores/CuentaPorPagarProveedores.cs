@@ -13,7 +13,12 @@ namespace SGRVBackEnd.Models.CxPProveedores
         public decimal MontoOriginal { get; set; }
         public decimal MontoPagado { get; set; }
         public decimal BalancePendiente { get; set; }
-        public DateTime
+        public DateTime FechaGeneracion { get; set; }
+        public DateTime FechaVencimiento { get; set; }
+        public string Estado { get; set; } = string.Empty;
+        public string Observacion { get; set; } = string.Empty;
+        public DateTime FechaActualizacion { get; set; } = DateTime.Now;
+
 
 
     }
