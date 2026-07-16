@@ -13,14 +13,19 @@ namespace SGRVBackEnd.Models.Renta
         public DateTime FechaInicio { get; set; }
         public DateTime FechaFin { get; set; }
         public DateTime FechaEntregaReal { get; set; }
-        public double PrecioPorDia { get; set; }
+        public decimal PrecioPorDia { get; set; }
         public int CantidadDias { get; set; }
-        public double Subtotal { get; set; }
-        public double Impuestos { get; set; }
-        public double Descuentos { get; set; }
-        public double Total { get; set; }
-        public double Deposito { get; set; }
+        public decimal Subtotal { get; set; }
+        public decimal Impuestos { get; set; }
+        public decimal Descuentos { get; set; }
+        public decimal Total { get; set; }
+        public decimal Deposito { get; set; }
         public string Observaciones { get; set; } = string.Empty;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public int IdFechaCreacion { get; set; }
+        public int IdProveedorVehiculo { get; set; }
+        public int IdAcuerdoVehiculo { get; set; }
+
+
     }
 }

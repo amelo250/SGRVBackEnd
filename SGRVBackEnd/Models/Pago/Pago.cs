@@ -9,7 +9,7 @@ namespace SGRVBackEnd.Models.Pago
         public int IdRenta { get; set; } 
         public int IdEstado { get; set; } 
         public DateTime FechaPago { get; set; } 
-        public double Monto { get; set; }
+        public decimal Monto { get; set; }
         public string Referencia { get; set; } = string.Empty;
         public string Observacion { get; set; } = string.Empty;
 

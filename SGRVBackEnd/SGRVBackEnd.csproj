@@ -24,8 +24,10 @@
     <Folder Include="Controllers\Clientes\" />
     <Folder Include="Controllers\Pagos\" />
     <Folder Include="Controllers\Rentas\" />
-    <Folder Include="Controllers\Vehiculos\" />
     <Folder Include="Controllers\Usuarios\" />
+    <Folder Include="DTOs\Mantenimientos\" />
+    <Folder Include="DTOs\Dashboard\" />
+    <Folder Include="DTOs\Reservaciones\" />
   </ItemGroup>
 
 </Project>

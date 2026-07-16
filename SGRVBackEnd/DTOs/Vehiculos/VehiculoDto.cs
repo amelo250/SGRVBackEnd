@@ -1,10 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace SGRVBackEnd.Models.Vehiculo
+﻿namespace SGRVBackEnd.DTOs.Vehiculos
 {
-    public class Vehiculo
+    public class VehiculoDto
     {
-        [Key]
         public int IdVehiculo { get; set; }
         public int IdEmpresa { get; set; }
         public int IdEstado { get; set; }
@@ -13,7 +10,7 @@ namespace SGRVBackEnd.Models.Vehiculo
         public string Marca { get; set; } = string.Empty;
 
         public string Modelo { get; set; } = string.Empty;
-        public int Anio { get; set; } 
+        public int Anio { get; set; }
         public string Placa { get; set; } = string.Empty;
         public string VIN { get; set; } = string.Empty;
         public string Color { get; set; } = string.Empty;
@@ -22,11 +19,6 @@ namespace SGRVBackEnd.Models.Vehiculo
         public decimal DepositoCombustible { get; set; }
         public string Descripcion { get; set; } = string.Empty;
         public bool Activo { get; set; } = false;
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public int IdTipo { get; set; }
-        public int TipoPropiedad { get; set; }
-        public int IdProveedorVehiculo { get; set; }
-
-
+        public DateTime FechaCreacion { get; set; }
     }
 }

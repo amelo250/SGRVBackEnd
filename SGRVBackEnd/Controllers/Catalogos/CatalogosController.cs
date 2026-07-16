@@ -69,6 +69,12 @@ namespace SGRVBackEnd.Controllers.CatalogosController
             {
                 return Ok(await _context.Transmisiones.Where(x => x.Activo).ToListAsync());
             }
+            
+            [HttpGet("Monedas")]
+            public async Task<IActionResult> GetMonedas()
+            {
+                return Ok(await _context.Monedas.Where(x => x.Activo).ToListAsync());
+            }
         }
     }
 }
