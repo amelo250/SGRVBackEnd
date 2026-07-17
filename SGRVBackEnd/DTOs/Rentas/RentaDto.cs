@@ -2,17 +2,17 @@
 {
     public class RentaDto
     {
-        public int Id { get; set; }
+        public int IdRenta { get; set; }
 
-        public int ClienteId { get; set; }
+        public int IdCliente { get; set; }
 
         public string ClienteNombre { get; set; } = string.Empty;
 
-        public int VehiculoId { get; set; }
+        public int IdVehiculo { get; set; }
 
         public string VehiculoDescripcion { get; set; } = string.Empty;
 
-        public int UsuarioId { get; set; }
+        public int IdUsuario { get; set; }
 
         public string UsuarioNombre { get; set; } = string.Empty;
 

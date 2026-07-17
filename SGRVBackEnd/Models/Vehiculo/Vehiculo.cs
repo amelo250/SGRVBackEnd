@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using SGRVBackEnd.Models.Vehiculo;
 
 namespace SGRVBackEnd.Models.Vehiculo
 {
@@ -22,10 +23,12 @@ namespace SGRVBackEnd.Models.Vehiculo
         public decimal DepositoCombustible { get; set; }
         public string Descripcion { get; set; } = string.Empty;
         public bool Activo { get; set; } = false;
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
         public int IdTipo { get; set; }
-        public int TipoPropiedad { get; set; }
-        public int IdProveedorVehiculo { get; set; }
+        [Required]
+        public TipoPropiedadVehiculo  TipoPropiedad { get; set; }
+        public int? IdProveedorVehiculo { get; set; }
+        public int IdMonedaTarifa { get; set; }
 
 
     }

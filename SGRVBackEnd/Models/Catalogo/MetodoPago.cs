@@ -2,7 +2,7 @@
 
 namespace SGRVBackEnd.Models.Catalogo
 {
-    public class MetodosPago
+    public class MetodoPago
     {
 
         [Key]

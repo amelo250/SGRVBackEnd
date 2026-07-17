@@ -5,13 +5,13 @@ namespace SGRVBackEnd.DTOs.Rentas
     public class RentaCreateDto
     {
         [Required]
-        public int ClienteId { get; set; }
+        public int IdCliente { get; set; }
 
         [Required]
-        public int VehiculoId { get; set; }
+        public int IdVehiculo { get; set; }
 
         [Required]
-        public int UsuarioId { get; set; }
+        public int IdUsuario { get; set; }
 
         [Required]
         public DateTime FechaInicio { get; set; }

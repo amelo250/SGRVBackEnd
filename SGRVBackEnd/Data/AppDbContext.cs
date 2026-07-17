@@ -21,10 +21,10 @@ namespace SGRVBackEnd.Data
         public DbSet<Models.Cliente.Cliente> Clientes => Set < Models.Cliente.Cliente>();
         public DbSet<Models.Renta.Renta> Rentas => Set<Models.Renta.Renta>();
 
-        public DbSet<Models.Catalogo.MetodosPago> MetodosPago => Set<Models.Catalogo.MetodosPago>();
+        public DbSet<Models.Catalogo.MetodoPago> MetodosPago => Set<Models.Catalogo.MetodoPago>();
         public DbSet<Models.Catalogo.Combustibles> Combustibles => Set<Models.Catalogo.Combustibles>();
         public DbSet<Models.Catalogo.Transmisiones> Transmisiones => Set<Models.Catalogo.Transmisiones>();
-        public DbSet<Models.Catalogo.Monedas> Monedas => Set<Models.Catalogo.Monedas>();
+        public DbSet<Models.Catalogo.Moneda> Monedas => Set<Models.Catalogo.Moneda>();
         public DbSet<Models.Pago.Pago> Pagos => Set<Models.Pago.Pago>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

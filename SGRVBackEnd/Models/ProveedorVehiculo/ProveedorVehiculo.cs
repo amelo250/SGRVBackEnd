@@ -2,7 +2,7 @@
 
 namespace SGRVBackEnd.Models.ProveedoresVehiculos
 {
-    public class ProveedoresVehiculos
+    public class ProveedorVehiculo
     {
         [Key]
         public int IdProveedorVehiculo { get; set; }
@@ -16,7 +16,7 @@ namespace SGRVBackEnd.Models.ProveedoresVehiculos
         public string Observacion { get; set; } = string.Empty;
         public bool Activo { get; set; } = false;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public DateTime FechaActualizacion { get; set; }
+        public DateTime? FechaActualizacion { get; set; }
 
 
 

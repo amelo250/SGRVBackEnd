@@ -2,7 +2,7 @@
 
 namespace SGRVBackEnd.Models.Reservaciones
 {
-    public class Reservaciones
+    public class Reservacion
     {
         [Key]
         public int IdReservacion { get; set; }

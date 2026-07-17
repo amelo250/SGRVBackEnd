@@ -28,7 +28,7 @@ namespace SGRVBackEnd.DTOs.Vehiculos
         public string? Color { get; set; }
 
         [MaxLength(100)]
-        public string? Chasis { get; set; }
+        public string? VIN { get; set; }
 
         [Range(0.01, double.MaxValue)]
         public decimal PrecioPorDia { get; set; }

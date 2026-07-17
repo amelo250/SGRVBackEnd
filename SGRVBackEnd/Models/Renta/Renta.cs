@@ -12,7 +12,7 @@ namespace SGRVBackEnd.Models.Renta
         public int IdEstado { get; set; }
         public DateTime FechaInicio { get; set; }
         public DateTime FechaFin { get; set; }
-        public DateTime FechaEntregaReal { get; set; }
+        public DateTime? FechaEntregaReal { get; set; }
         public decimal PrecioPorDia { get; set; }
         public int CantidadDias { get; set; }
         public decimal Subtotal { get; set; }
@@ -20,11 +20,15 @@ namespace SGRVBackEnd.Models.Renta
         public decimal Descuentos { get; set; }
         public decimal Total { get; set; }
         public decimal Deposito { get; set; }
-        public string Observaciones { get; set; } = string.Empty;
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public int IdFechaCreacion { get; set; }
-        public int IdProveedorVehiculo { get; set; }
-        public int IdAcuerdoVehiculo { get; set; }
+        public string? Observaciones { get; set; } = string.Empty;
+        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+        public int IdUsuarioCreacion { get; set; }
+        public int? IdProveedorVehiculo { get; set; }
+        public int? IdAcuerdoVehiculo { get; set; }
+        public int IdMoneda { get; set; }
+        public decimal TasaCambioAplicada { get; set; }
+        public decimal TotalMonedaLocal { get; set; }
+
 
 
     }

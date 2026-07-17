@@ -2,12 +2,12 @@
 
 namespace SGRVBackEnd.Models.CxPProveedores
 {
-    public class CuentaPorPagarProveedores
+    public class CuentaPorPagarProveedor
     {
         [Key]
         public int IdCuentaPorPagar { get; set; }
         public int IdEmpresa { get; set; }
-        public int IdProveedor { get; set; }
+        public int IdProveedorVehiculo { get; set; }
         public int IdRenta { get; set; }
         public int IdMoneda { get; set; }
         public decimal MontoOriginal { get; set; }

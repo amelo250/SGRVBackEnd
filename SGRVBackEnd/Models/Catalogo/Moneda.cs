@@ -2,7 +2,7 @@
 
 namespace SGRVBackEnd.Models.Catalogo
 {
-    public class Monedas
+    public class Moneda
     {
         [Key]
         public int idMoneda { get; set; }

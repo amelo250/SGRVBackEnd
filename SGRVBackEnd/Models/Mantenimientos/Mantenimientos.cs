@@ -9,7 +9,7 @@ namespace SGRVBackEnd.Models.Mantenimientos
         public int IdVehiculo { get; set; }
         public int IdTipoMantenimiento { get; set; }
         public DateTime Fecha { get; set; }
-        public string Taller { get; set; }
+        public string? Taller { get; set; }
         public int Kilometraje { get; set; }
         public decimal Costo { get; set; }
         public string Observacion { get; set; } = string.Empty;
