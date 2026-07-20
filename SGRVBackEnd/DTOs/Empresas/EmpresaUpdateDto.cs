@@ -7,6 +7,8 @@ namespace SGRVBackEnd.DTOs.Empresas
         [Required]
         [MaxLength(150)]
         public string Nombre { get; set; } = string.Empty;
+        public string NombtreComercial { get; set; } = string.Empty;
+
 
         [Required]
         [MaxLength(20)]
@@ -21,7 +23,8 @@ namespace SGRVBackEnd.DTOs.Empresas
 
         [MaxLength(250)]
         public string? Direccion { get; set; }
+        public string? LogoUrl { get; set; }
 
-        public bool Activa { get; set; }
+        public bool Activo { get; set; }
     }
 }

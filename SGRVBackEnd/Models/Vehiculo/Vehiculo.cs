@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using SGRVBackEnd.Models.Vehiculo;
+using SGRVBackEnd.Enums;
 
 namespace SGRVBackEnd.Models.Vehiculo
 {

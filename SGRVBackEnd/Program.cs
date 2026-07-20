@@ -12,6 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Entity Framework Core + SQL Server
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+?? throw new InvalidOperationException(
+    "No se encontró la cadena de conexión 'DefaultConnection' en la configuración."
+);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")

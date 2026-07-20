@@ -16,6 +16,7 @@ namespace SGRVBackEnd.Models.Empresa
         public string LogoUrl { get; set; } = string.Empty;
         public DateTime FechaRegistro { get; set; } = DateTime.Now;
 
+        public DateTime? FechaActualizacion { get; set; }
         public bool Activo { get; set; } = false;
 
 

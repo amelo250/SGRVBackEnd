@@ -21,7 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\Empresas\" />
     <Folder Include="Controllers\Clientes\" />
     <Folder Include="Controllers\Pagos\" />
     <Folder Include="Controllers\Rentas\" />
