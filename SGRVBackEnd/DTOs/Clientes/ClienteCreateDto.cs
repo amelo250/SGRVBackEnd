@@ -15,14 +15,17 @@ namespace SGRVBackEnd.DTOs.Clientes
 
         [Required]
         [MaxLength(50)]
-        public string Documento { get; set; } = string.Empty;
+        public string CedulaPasaporte { get; set; } = string.Empty;
 
         [MaxLength(20)]
         public string? Telefono { get; set; }
+        public DateTime FechaNacimiento { get; set; }
+        public string? Nacionalidad { get; set; }
+        public int IdEmpresa { get; set; }
 
         [EmailAddress]
         [MaxLength(150)]
-        public string? Correo { get; set; }
+        public string? Email { get; set; }
 
         [MaxLength(250)]
         public string? Direccion { get; set; }
