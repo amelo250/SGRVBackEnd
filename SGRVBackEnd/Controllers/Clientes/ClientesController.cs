@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SGRVBackEnd.Data;
 using SGRVBackEnd.DTOs.Clientes;
+using SGRVBackEnd.Helpers;
 using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Cliente;
 
@@ -42,7 +43,7 @@ namespace SGRVBackEnd.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(clientes);
+            return Ok(ApiResponse<IEnumerable<ClienteDto>>.Correcto(clientes));
         }
 
         // GET: api/clientes/5
@@ -92,7 +93,7 @@ namespace SGRVBackEnd.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(clientes);
+            return Ok(ApiResponse<IEnumerable<ClienteDto>>.Correcto(clientes));
         }
 
         // POST: api/clientes

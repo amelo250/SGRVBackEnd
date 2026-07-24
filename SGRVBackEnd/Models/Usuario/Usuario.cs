@@ -11,12 +11,13 @@ namespace SGRVBackEnd.Models.Usuarios
         public int IdUsuario { get; set; }
 
         public int IdEmpresa { get; set; }
+        public int IdRol { get; set; }
         public string Nombre { get; set; }=string.Empty;
         public string Email { get; set; }= string.Empty;
        
         public string PasswordHash { get; set; }
         [Required]
-        public int IdRol { get; set; }
+      
         public bool Activo { get; set; }
         public string? Telefono { get; set; }
         public DateTime UltimoAcceso { get; set; }

@@ -6,6 +6,7 @@ using SGRVBackEnd.Data;
 using SGRVBackEnd.DTOs.Empresas;
 using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Empresa;
+using SGRVBackEnd.Helpers;
 
 namespace SGRVBackEnd.Controllers;
 
@@ -31,6 +32,8 @@ public class EmpresasController : ControllerBase
     public async Task<ActionResult<IEnumerable<EmpresaDto>>> GetEmpresas(
         CancellationToken cancellationToken)
     {
+
+  
         var empresas = await _context.Empresas
             .AsNoTracking()
             .OrderBy(e => e.Nombre)
@@ -53,7 +56,7 @@ public class EmpresasController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        return Ok(empresas);
+        return Ok( ApiResponse<IEnumerable<EmpresaDto>>.Correcto(empresas));
     }
 
     // GET: api/empresas/5
@@ -91,7 +94,7 @@ public class EmpresasController : ControllerBase
             });
         }
 
-        return Ok(empresa);
+        return Ok( ApiResponse<EmpresaDto>.Correcto(empresa));
     }
 
     // POST: api/empresas

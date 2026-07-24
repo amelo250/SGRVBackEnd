@@ -10,24 +10,31 @@ namespace SGRVBackEnd.DTOs.Usuarios
         public string Nombre { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(100)]
-        public string Apellido { get; set; } = string.Empty;
+        [Phone]
+        public string Telefono { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(50)]
-        public string NombreUsuario { get; set; } = string.Empty;
+        public int IdEmpresa { get; set; }
+
+        [Required]
+        public int IdRol { get; set; }
+
 
         [Required]
         [EmailAddress]
         [MaxLength(150)]
-        public string Correo { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
 
         [Required]
         [MinLength(8)]
-        public string Password { get; set; } = string.Empty;
-
+        public string PasswordHash { get; set; } = string.Empty;
         [Required]
-        [MaxLength(30)]
-        public string Rol { get; set; } = "Empleado";
+        public bool Activo { get; set; }
+
+        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+
+
+
+
     }
 }

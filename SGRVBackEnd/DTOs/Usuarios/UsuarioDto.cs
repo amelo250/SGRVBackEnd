@@ -3,17 +3,20 @@
     public class UsuarioDto
     {
 
-        public int Id { get; set; }
+        public int IdUsuario { get; set; }
+        public int IdEmpresa { get; set; }
+        public int IdRol { get; set; }
 
-        public string Nombre { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;  
 
-        public string Apellido { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
 
-        public string NombreUsuario { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public DateTime UltimoAcceso { get; set; }
+        public DateTime FechaCreacion { get; set; }= DateTime.UtcNow;
 
-        public string Correo { get; set; } = string.Empty;
 
-        public string Rol { get; set; } = string.Empty;
 
         public bool Activo { get; set; }
     }

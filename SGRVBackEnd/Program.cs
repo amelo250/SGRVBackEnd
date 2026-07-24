@@ -85,6 +85,23 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:5000",
+                "http://localhost:8080",
+                "http://localhost:3000"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Swagger en desarrollo
@@ -101,9 +118,17 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+
+if (!app.Environment.IsDevelopment())
+{
+
+    app.UseHttpsRedirection();
+}
+
+app.UseCors(FrontendCorsPolicy);
 
 // El orden es importante.
+app.UseMiddleware<SGRVBackEnd.Middleware.ExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

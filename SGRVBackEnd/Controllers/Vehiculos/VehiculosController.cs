@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SGRVBackEnd.Data;
 using SGRVBackEnd.DTOs.Vehiculos;
+using SGRVBackEnd.Helpers;
 using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Vehiculo;
 
@@ -33,7 +34,7 @@ public sealed class VehiculosController : BaseApiController
             .Select(x => Map(x))
             .ToListAsync();
 
-        return Ok(data);
+        return Ok(ApiResponse<IEnumerable<VehiculoDto>>.Correcto(data));
     }
 
     [HttpGet("{id:int}")]
@@ -47,7 +48,7 @@ public sealed class VehiculosController : BaseApiController
             .Select(x => Map(x))
             .FirstOrDefaultAsync();
 
-        return vehiculo is null ? NotFound() : Ok(vehiculo);
+        return vehiculo is null ? NotFound() : Ok(ApiResponse<VehiculoDto>.Correcto(vehiculo));
     }
 
     [HttpGet("disponibles")]
@@ -65,7 +66,7 @@ public sealed class VehiculosController : BaseApiController
             .Select(x => Map(x))
             .ToListAsync();
 
-        return Ok(data);
+        return Ok(ApiResponse<IEnumerable<VehiculoDto>>.Correcto(data));
     }
 
     [HttpPost]
