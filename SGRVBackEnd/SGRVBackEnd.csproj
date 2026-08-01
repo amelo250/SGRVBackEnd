@@ -25,7 +25,6 @@
     <Folder Include="Controllers\Dashboard\" />
     <Folder Include="Controllers\Reservas\" />
     <Folder Include="Controllers\Proveedores\" />
-    <Folder Include="Controllers\Pagos\" />
     <Folder Include="Controllers\Rentas\" />
     <Folder Include="DTOs\Mantenimientos\" />
     <Folder Include="DTOs\Dashboard\" />

@@ -133,7 +133,8 @@ public class AuthController : ControllerBase
         {
             new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Role, "Admin"),
-            new Claim("EmpresaId", "1")
+            new Claim(ClaimTypes.NameIdentifier,"IdUsuario", "1"),
+            new Claim("IdEmpresa", "1")
         };
 
         var key = new SymmetricSecurityKey(

@@ -4,21 +4,16 @@ namespace SGRVBackEnd.DTOs.Pagos
 {
     public class PagoUpdateDto
     {
-        [Range(0.01, double.MaxValue)]
-        public decimal Monto { get; set; }
-
-        [Required]
-        [MaxLength(50)]
-        public string MetodoPago { get; set; } = string.Empty;
-
-        [MaxLength(100)]
+        public int? IdEmpresa { get; set; }
+        public int? IdRenta { get; set; }
+        public int? IdMetodoPago { get; set; }
+        public int? IdEstadoPago { get; set; }
+        public int? IdMoneda { get; set; }
+        public decimal? Monto { get; set; }
+        public decimal? TasaCambioAplicada { get; set; } = 1m;
+        public DateTime? FechaPago { get; set; }
         public string? Referencia { get; set; }
-
-        [Required]
-        [MaxLength(30)]
-        public string Estado { get; set; } = string.Empty;
-
-        [MaxLength(250)]
         public string? Observaciones { get; set; }
     }
+
 }

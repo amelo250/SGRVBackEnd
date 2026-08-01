@@ -7,6 +7,7 @@ using SGRVBackEnd.DTOs.Empresas;
 using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Empresa;
 using SGRVBackEnd.Helpers;
+using SGRVBackEnd.Shared;
 
 namespace SGRVBackEnd.Controllers;
 
@@ -56,7 +57,7 @@ public class EmpresasController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        return Ok( ApiResponse<IEnumerable<EmpresaDto>>.Correcto(empresas));
+        return Ok(ApiResponseHelper<IEnumerable<EmpresaDto>>.Correcto(empresas));
     }
 
     // GET: api/empresas/5
@@ -94,7 +95,7 @@ public class EmpresasController : ControllerBase
             });
         }
 
-        return Ok( ApiResponse<EmpresaDto>.Correcto(empresa));
+        return Ok( ApiResponseHelper<EmpresaDto>.Correcto(empresa));
     }
 
     // POST: api/empresas
@@ -246,6 +247,7 @@ public class EmpresasController : ControllerBase
 
     // DELETE: api/empresas/5
     // Realiza eliminación lógica.
+    [Authorize(Roles = "ADMIN, SuperUsuario")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

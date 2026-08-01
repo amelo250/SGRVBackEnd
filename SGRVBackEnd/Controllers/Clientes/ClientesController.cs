@@ -43,7 +43,7 @@ namespace SGRVBackEnd.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(ApiResponse<IEnumerable<ClienteDto>>.Correcto(clientes));
+            return Ok(ApiResponseHelper<IEnumerable<ClienteDto>>.Correcto(clientes));
         }
 
         // GET: api/clientes/5
@@ -71,11 +71,13 @@ namespace SGRVBackEnd.Controllers
         }
 
         // GET: api/clientes/empresa/1
-        [HttpGet("empresa/{empresaId}")]
-        public async Task<ActionResult<IEnumerable<ClienteDto>>> GetClientesPorEmpresa(int empresaId)
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<ClienteDto>>> GetClientesPorEmpresa()
         {
+
+            var IdEmpresa = ClaimsHelper.ObtenerIdEmpresa(User);
             var clientes = await _context.Clientes
-                .Where(c => c.IdEmpresa == empresaId)
+                .Where(c => c.IdEmpresa == IdEmpresa)
                 .OrderBy(c => c.Nombre)
                 .Select(c => new ClienteDto
                 {
@@ -93,7 +95,7 @@ namespace SGRVBackEnd.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(ApiResponse<IEnumerable<ClienteDto>>.Correcto(clientes));
+            return Ok(ApiResponseHelper<IEnumerable<ClienteDto>>.Correcto(clientes));
         }
 
         // POST: api/clientes

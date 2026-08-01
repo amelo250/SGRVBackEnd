@@ -63,7 +63,7 @@ namespace SGRVBackEnd.Controllers
                 })
                 .ToListAsync(cancellationToken);
 
-            return Ok(ApiResponse<IEnumerable<UsuarioDto>>.Correcto(usuarios));
+            return Ok(ApiResponseHelper<IEnumerable<UsuarioDto>>.Correcto(usuarios));
         }
 
         // GET: api/usuarios/5
@@ -97,11 +97,12 @@ namespace SGRVBackEnd.Controllers
                 });
             }
 
-            return Ok(ApiResponse<UsuarioDto>.Correcto(usuario));
+            return Ok(ApiResponseHelper<UsuarioDto>.Correcto(usuario));
         }
 
         // POST: api/usuarios
         [HttpPost]
+        [Authorize(Roles = "ADMIN,SUPADMIN")]
         public async Task<ActionResult<UsuarioDto>> CrearUsuario(
             UsuarioCreateDto dto,
             CancellationToken cancellationToken)

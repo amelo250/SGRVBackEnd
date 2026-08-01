@@ -26,7 +26,7 @@ namespace SGRVBackEnd.Middleware
             {
                 _logger.LogError(ex, "Error no controlado"); context.Response.ContentType = "application/json"; context.Response.StatusCode =
                     (int)HttpStatusCode.InternalServerError; var mensaje = _environment.IsDevelopment() ? ex.Message
-                    : "Ocurrió un error interno en el servidor."; var respuesta = ApiResponse<object>.Fallido(mensaje); var json = JsonSerializer.Serialize(respuesta); await context   .Response.WriteAsync(json);
+                    : "Ocurrió un error interno en el servidor."; var respuesta = ApiResponseHelper<object>.Fallido(mensaje); var json = JsonSerializer.Serialize(respuesta); await context   .Response.WriteAsync(json);
             }
         }
     }

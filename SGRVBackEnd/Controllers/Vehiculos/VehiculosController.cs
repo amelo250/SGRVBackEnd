@@ -34,13 +34,13 @@ public sealed class VehiculosController : BaseApiController
             .Select(x => Map(x))
             .ToListAsync();
 
-        return Ok(ApiResponse<IEnumerable<VehiculoDto>>.Correcto(data));
+        return Ok(ApiResponseHelper<IEnumerable<VehiculoDto>>.Correcto(data));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<VehiculoDto>> GetById(int id)
     {
-        var idEmpresa = GetEmpresaId();
+        var idEmpresa = ClaimsHelper.ObtenerIdEmpresa(User);
 
         var vehiculo = await _context.Vehiculos
             .AsNoTracking()
@@ -48,13 +48,13 @@ public sealed class VehiculosController : BaseApiController
             .Select(x => Map(x))
             .FirstOrDefaultAsync();
 
-        return vehiculo is null ? NotFound() : Ok(ApiResponse<VehiculoDto>.Correcto(vehiculo));
+        return vehiculo is null ? NotFound() : Ok(ApiResponseHelper<VehiculoDto>.Correcto(vehiculo));
     }
 
     [HttpGet("disponibles")]
     public async Task<ActionResult<IEnumerable<VehiculoDto>>> GetDisponibles()
     {
-        var idEmpresa = GetEmpresaId();
+        var idEmpresa = ClaimsHelper.ObtenerIdEmpresa(User);
 
         var data = await _context.Vehiculos
             .AsNoTracking()
@@ -66,7 +66,7 @@ public sealed class VehiculosController : BaseApiController
             .Select(x => Map(x))
             .ToListAsync();
 
-        return Ok(ApiResponse<IEnumerable<VehiculoDto>>.Correcto(data));
+        return Ok(ApiResponseHelper<IEnumerable<VehiculoDto>>.Correcto(data));
     }
 
     [HttpPost]

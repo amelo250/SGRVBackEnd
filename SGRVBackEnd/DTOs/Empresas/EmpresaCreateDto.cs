@@ -10,6 +10,7 @@ namespace SGRVBackEnd.DTOs.Empresas
         public string Nombre { get; set; } = string.Empty;
         [Required]
         public int IdPlan { get; set; }
+        [Required]
         public string NombreComercial { get; set; } = string.Empty;
        
 
