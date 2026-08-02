@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity;
 using Microsoft.IdentityModel.Tokens;
 using SGRVBackEnd.Data;
 using SGRVBackEnd.Helpers;
@@ -61,11 +60,11 @@ public class AuthController : ControllerBase
 
             });
         }
-            var passwordHasher = new PasswordHasher<Models.Usuarios.Usuario>();
+            
 
-            var result = passwordHasher.VerifyHashedPassword(usuario, usuario.PasswordHash, request.password);
+        var result = _passwordHasher.VerifyHashedPassword(usuario,usuario.PasswordHash,request.password);
 
-            if (result == PasswordVerificationResult.Failed)
+        if (result == PasswordVerificationResult.Failed)
             {
                 return Unauthorized(new
                 {
@@ -101,9 +100,9 @@ public class AuthController : ControllerBase
 
     [Authorize(Roles = "SUPADMIN")]
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request,CancellationToken cancellationToken)
     { 
-        var existeusuario = await _context.Usuarios.AnyAsync(u => u.Email == request.Email);
+        var existeusuario = await _context.Usuarios.AnyAsync(u => u.Email == request.Email, cancellationToken);
 
         if (existeusuario) {
 
@@ -115,6 +114,40 @@ public class AuthController : ControllerBase
             });
                 
                 }
+
+
+        var empresaValida = await _context.Empresas
+    .AsNoTracking()
+    .AnyAsync(
+        empresa =>
+            empresa.IdEmpresa == request.IdEmpresa &&
+            empresa.Activo,
+        cancellationToken);
+
+        if (!empresaValida)
+        {
+            return BadRequest(new
+            {
+                message = "La empresa no existe o está inactiva."
+            });
+        }
+
+
+        var rolValido = await _context.Roles
+    .AsNoTracking()
+    .AnyAsync(
+        rol =>
+            rol.IdRol == request.IdRol &&
+            rol.Activo,
+        cancellationToken);
+
+        if (!rolValido)
+        {
+            return BadRequest(new
+            {
+                message = "El rol no existe o está inactivo."
+            });
+        }
         var usuario = new Models.Usuarios.Usuario
         {
             
@@ -129,7 +162,7 @@ public class AuthController : ControllerBase
         var result = _passwordHasher.VerifyHashedPassword(usuario,usuario.PasswordHash,request.Password);
 
         _context.Usuarios.Add(usuario);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return Ok(new
         {
