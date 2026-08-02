@@ -1,6 +1,6 @@
-﻿
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using SGRVBackEnd.Helpers;
 
 namespace SGRVBackEnd.Controllers;
 
@@ -9,45 +9,34 @@ public abstract class BaseApiController : ControllerBase
 {
     protected int GetEmpresaId()
     {
-        var empresaIdClaim = User.FindFirst("EmpresaId")?.Value;
-
-        if (string.IsNullOrWhiteSpace(empresaIdClaim))
-        {
-            throw new UnauthorizedAccessException(
-                "El token no contiene el claim EmpresaId."
-            );
-        }
-
-        if (!int.TryParse(empresaIdClaim, out var idEmpresa))
-        {
-            throw new UnauthorizedAccessException(
-                "El claim EmpresaId del token no es válido."
-            );
-        }
-
-        return idEmpresa;
+        return GetRequiredIntegerClaim(CustomClaimTypes.EmpresaId);
     }
 
     protected int GetUsuarioId()
     {
-        var usuarioIdClaim =
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var claim =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst(CustomClaimTypes.UsuarioId)?.Value;
 
-        if (string.IsNullOrWhiteSpace(usuarioIdClaim))
+        if (!int.TryParse(claim, out var idUsuario) || idUsuario <= 0)
         {
             throw new UnauthorizedAccessException(
-                "El token no contiene el identificador del usuario."
-            );
-        }
-
-        if (!int.TryParse(usuarioIdClaim, out var idUsuario))
-        {
-            throw new UnauthorizedAccessException(
-                "El identificador del usuario no es válido."
-            );
+                "El token no contiene un usuario válido.");
         }
 
         return idUsuario;
     }
-}
 
+    private int GetRequiredIntegerClaim(string claimType)
+    {
+        var value = User.FindFirst(claimType)?.Value;
+
+        if (!int.TryParse(value, out var result) || result <= 0)
+        {
+            throw new UnauthorizedAccessException(
+                $"El token no contiene el claim {claimType} válido.");
+        }
+
+        return result;
+    }
+}

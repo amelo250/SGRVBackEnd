@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Catalogo;
+using SGRVBackEnd.Models.Pago;
 
 namespace SGRVBackEnd.Data
 {
@@ -42,11 +43,72 @@ namespace SGRVBackEnd.Data
                 entity.Property(e => e.IdRol).IsRequired();
                 entity.Property(e => e.Activo).IsRequired();
             });
+            modelBuilder.Entity<Moneda>(entity =>
+            {
+                entity.ToTable("Monedas");
+
+                entity.HasKey(x => x.IdMoneda);
+
+                entity.Property(x => x.IdMoneda)
+                    .HasColumnName("idMoneda");
+
+                entity.Property(x => x.Codigo)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(x => x.Nombre)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.Simbolo)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(x => x.Activo)
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity<Pago>(entity =>
+            {
+                entity.ToTable("Pagos");
+
+                entity.HasKey(x => x.IdPago);
+
+                entity.Property(x => x.Monto)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.TasaCambioAplicada)
+                    .HasPrecision(18, 6);
+
+                entity.Property(x => x.MontoMonedaLocal)
+                    .HasPrecision(18, 2);
+
+                entity.HasOne(x => x.Moneda)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdMoneda)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Estado)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdEstado)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.MetodoPago)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdMetodoPago)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Renta)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdRenta)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
+    }
 
 
 
 
 
     }
-}
+

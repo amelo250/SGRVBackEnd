@@ -1,14 +1,16 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity;
 using Microsoft.IdentityModel.Tokens;
+using SGRVBackEnd.Data;
+using SGRVBackEnd.Helpers;
+using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Auth;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.Identity;
-using Microsoft.EntityFrameworkCore;
-using SGRVBackEnd.Data;
-using SGRVBackEnd.Models;
 
 
 namespace SGRVBackEnd.Controllers.Auth;
@@ -18,6 +20,7 @@ public class AuthController : ControllerBase
 {
     private readonly IConfiguration _configuration;
     private readonly AppDbContext _context;
+    private CancellationToken cancellationToken;
 
     public AuthController(IConfiguration configuration,AppDbContext context)
     {
@@ -26,7 +29,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public  async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         // Usuario temporal para prueba
         //if (request.email != "admin@rentcar.com" || request.password != "123456")
@@ -63,7 +66,20 @@ public class AuthController : ControllerBase
 
 
 
-            var token = GenerateJwtToken(request.email);
+        var rol = await _context.Roles
+    .AsNoTracking()
+    .FirstOrDefaultAsync(
+        x => x.IdRol == usuario.IdRol && x.Activo,cancellationToken);
+
+        if (rol is null)
+        {
+            return Unauthorized(new
+            {
+                message = "El usuario no tiene un rol activo válido."
+            });
+        }
+
+        var token = GenerateJwtToken(usuario, rol.Codigo);
 
         return Ok(new LoginResponse
         {
@@ -74,6 +90,7 @@ public class AuthController : ControllerBase
         });
     }
 
+    [Authorize(Roles = "SUPADMIN")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     { 
@@ -125,38 +142,59 @@ public class AuthController : ControllerBase
 
     }
 
-    private string GenerateJwtToken(string email)
+    private string GenerateJwtToken(
+     Models.Usuarios.Usuario usuario,
+     string codigoRol)
     {
         var jwtSettings = _configuration.GetSection("Jwt");
 
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.Email, email),
-            new Claim(ClaimTypes.Role, "Admin"),
-            new Claim(ClaimTypes.NameIdentifier,"IdUsuario", "1"),
-            new Claim("IdEmpresa", "1")
-        };
+        var claims = new List<Claim>
+    {
+        new(
+            ClaimTypes.NameIdentifier,
+            usuario.IdUsuario.ToString()),
+
+        new(
+            CustomClaimTypes.UsuarioId,
+            usuario.IdUsuario.ToString()),
+
+        new(
+            CustomClaimTypes.EmpresaId,
+            usuario.IdEmpresa.ToString()),
+
+        new(
+            ClaimTypes.Email,
+            usuario.Email),
+
+        new(
+            ClaimTypes.Name,
+            usuario.Nombre),
+
+        new(
+            ClaimTypes.Role,
+            codigoRol)
+    };
+
+        var keyValue = jwtSettings["Key"]
+            ?? throw new InvalidOperationException(
+                "No se encontró la configuración Jwt:Key.");
 
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtSettings["Key"]!)
-        );
+            Encoding.UTF8.GetBytes(keyValue));
 
         var credentials = new SigningCredentials(
             key,
-            SecurityAlgorithms.HmacSha256
-        );
+            SecurityAlgorithms.HmacSha256);
 
         var expiration = DateTime.UtcNow.AddMinutes(
-            Convert.ToDouble(jwtSettings["ExpiresInMinutes"])
-        );
+            Convert.ToDouble(jwtSettings["ExpiresInMinutes"]));
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
             expires: expiration,
-            signingCredentials: credentials
-        );
+            signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

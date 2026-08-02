@@ -1,29 +1,33 @@
-﻿using SGRVBackEnd.Models.Catalogo;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using SGRVBackEnd.Models.Catalogo;
+using SGRVBackEnd.Models.EmpresasScopedEntity;
 
-namespace SGRVBackEnd.Models.Pago
+namespace SGRVBackEnd.Models.Pago;
+
+public class Pago : EmpresaScopedEntity
 {
-    public class Pago : EmpresasScopedEntity
-    {
-        public int IdPago { get; set; }
-        public int IdRenta { get; set; }
-        public int IdMetodoPago { get; set; }
-        public int IdEstadoPago { get; set; }
-        public int IdMoneda { get; set; }
+    [Key]
+    public int IdPago { get; set; }
 
-        public decimal Monto { get; set; }
-        public decimal TasaCambioAplicada { get; set; } = 1m;
-        public DateTime FechaPago { get; set; }
+    public int IdRenta { get; set; }
+    public int IdMetodoPago { get; set; }
+    public int IdEstado { get; set; }
+    public int IdMoneda { get; set; }
 
-        [MaxLength(100)]
-        public string? Referencia { get; set; }
+    public decimal Monto { get; set; }
+    public decimal TasaCambioAplicada { get; set; } = 1m;
+    public decimal MontoMonedaLocal { get; set; }
 
-        [MaxLength(500)]
-        public string? Observaciones { get; set; }
+    public DateTime FechaPago { get; set; }
 
-        public Renta Renta { get; set; } = null!;
-        public MetodoPago MetodoPago { get; set; } = null!;
-        public EstadoPago EstadoPago { get; set; } = null!;
-        public Moneda Moneda { get; set; } = null!;
-    }
+    [MaxLength(100)]
+    public string? Referencia { get; set; }
+
+    [MaxLength(500)]
+    public string? Observaciones { get; set; }
+
+    public Renta.Renta Renta { get; set; } = null!;
+    public MetodoPago MetodoPago { get; set; } = null!;
+    public Estado Estado { get; set; } = null!;
+    public Moneda Moneda { get; set; } = null!;
 }

@@ -21,30 +21,7 @@ namespace SGRVBackEnd.Controllers
             _context = context;
         }
 
-        // GET: api/clientes
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<ClienteDto>>> GetClientes()
-        {
-            var clientes = await _context.Clientes
-                .OrderBy(c => c.Nombre)
-                .Select(c => new ClienteDto
-                {
-                    IdCliente = c.IdCliente,
-                    Nombre = c.Nombre,
-                    Apellido = c.Apellido,
-                    CedulaPasaporte = c.CedulaPasaporte,
-                    
-                    Telefono = c.Telefono,
-                     Email = c.Email,
-                    Direccion = c.Direccion,
-                    FechaNacimiento = c.FechaNacimiento,
-                    IdEmpresa = c.IdEmpresa,
-                    Activo = c.Activo
-                })
-                .ToListAsync();
-
-            return Ok(ApiResponseHelper<IEnumerable<ClienteDto>>.Correcto(clientes));
-        }
+    
 
         // GET: api/clientes/5
         [HttpGet("{id}")]
@@ -75,7 +52,7 @@ namespace SGRVBackEnd.Controllers
         public async Task<ActionResult<IEnumerable<ClienteDto>>> GetClientesPorEmpresa()
         {
 
-            var IdEmpresa = ClaimsHelper.ObtenerIdEmpresa(User);
+            var IdEmpresa = GetEmpresaId();
             var clientes = await _context.Clientes
                 .Where(c => c.IdEmpresa == IdEmpresa)
                 .OrderBy(c => c.Nombre)
