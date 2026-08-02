@@ -26,6 +26,8 @@ namespace SGRVBackEnd.Data
         public DbSet<Models.Catalogo.Transmisiones> Transmisiones => Set<Models.Catalogo.Transmisiones>();
         public DbSet<Models.Catalogo.Moneda> Monedas => Set<Models.Catalogo.Moneda>();
         public DbSet<Models.Pago.Pago> Pagos => Set<Models.Pago.Pago>();
+
+        public DbSet<Models.ProveedoresVehiculos.ProveedorVehiculo> ProveedoresVehiculos => Set<Models.ProveedoresVehiculos.ProveedorVehiculo>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Models.Usuarios.Usuario>(entity =>

@@ -24,11 +24,11 @@
     <Folder Include="Controllers\Mantenimientos\" />
     <Folder Include="Controllers\Dashboard\" />
     <Folder Include="Controllers\Reservas\" />
-    <Folder Include="Controllers\Proveedores\" />
+    <Folder Include="Controllers\ProveedoresVehiculosController\" />
     <Folder Include="Controllers\Rentas\" />
     <Folder Include="DTOs\Mantenimientos\" />
     <Folder Include="DTOs\Dashboard\" />
-    <Folder Include="DTOs\Proveedores\" />
+    <Folder Include="DTOs\ProveedoresVehiculos\" />
     <Folder Include="DTOs\Reservaciones\" />
     <Folder Include="Interfaces\" />
     <Folder Include="Services\" />

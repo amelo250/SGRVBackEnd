@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SGRVBackEnd.Models.Pago
 {
-    public class Pago : EmpresaScopedEntity
+    public class Pago : EmpresasScopedEntity
     {
         public int IdPago { get; set; }
         public int IdRenta { get; set; }
@@ -26,3 +26,4 @@ namespace SGRVBackEnd.Models.Pago
         public EstadoPago EstadoPago { get; set; } = null!;
         public Moneda Moneda { get; set; } = null!;
     }
+}

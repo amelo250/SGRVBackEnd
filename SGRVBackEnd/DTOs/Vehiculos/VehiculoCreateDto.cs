@@ -1,45 +1,23 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using SGRVBackEnd.Enums;
+namespace SGRVBackEnd.DTOs.Vehiculos;
 
-namespace SGRVBackEnd.DTOs.Vehiculos
+public class VehiculoCreateDto
 {
-    public class VehiculoCreateDto
-    {
-        [Required]
-        public int IdEmpresa { get; set; }
-        [Required]
-        public int IdEstado { get; set; }
-        [Required]
-        public int IdCombustible { get; set; }
-        [Required]
-        public int IdTransmision { get; set; }
-
-        [Required]
-        [MaxLength(50)]
-        public string Marca { get; set; } = string.Empty;
-
-        [Required]
-        [MaxLength(50)]
-        public string Modelo { get; set; } = string.Empty;
-
-        [Range(1900, 2100)]
-        public int Anio { get; set; }
-
-        [Required]
-        [MaxLength(20)]
-        public string Placa { get; set; } = string.Empty;
-
-        [MaxLength(30)]
-        public string? Color { get; set; }
-
-        [MaxLength(100)]
-        public string? VIN { get; set; }
-
-        [Range(0.01, double.MaxValue)]
-        public decimal PrecioPorDia { get; set; }
-
-        public int Kilometraje { get; set; }
-
-        public string Descripcion { get; set; } = string.Empty;
-        public decimal DepositoCombustible { get; set; }
-    }
+    [Range(1, int.MaxValue)] public int IdCombustible { get; set; }
+    [Range(1, int.MaxValue)] public int IdTransmision { get; set; }
+    [Range(1, int.MaxValue)] public int IdTipo { get; set; }
+    [Required] public TipoPropiedadVehiculo TipoPropiedad { get; set; }
+    public int? IdProveedorVehiculo { get; set; }
+    [Range(1, int.MaxValue)] public int IdMonedaTarifa { get; set; }
+    [Required, MaxLength(50)] public string Marca { get; set; } = string.Empty;
+    [Required, MaxLength(50)] public string Modelo { get; set; } = string.Empty;
+    [Range(1900, 2100)] public int Anio { get; set; }
+    [Required, MaxLength(20)] public string Placa { get; set; } = string.Empty;
+    [MaxLength(30)] public string? Color { get; set; }
+    [MaxLength(100)] public string? VIN { get; set; }
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")] public decimal PrecioPorDia { get; set; }
+    [Range(0, int.MaxValue)] public int Kilometraje { get; set; }
+    [MaxLength(500)] public string? Descripcion { get; set; }
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")] public decimal DepositoCombustible { get; set; }
 }
