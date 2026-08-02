@@ -225,7 +225,7 @@ public sealed class VehiculosController : BaseApiController
             return "La transmisión indicada no existe o está inactiva.";
         if (!await _context.Tipos.AsNoTracking().AnyAsync(x => x.IdTipo == request.IdTipo && x.Categoria == "VEHICULO" && x.Activo, cancellationToken))
             return "El tipo indicado no corresponde a vehículos.";
-        if (!await _context.Monedas.AsNoTracking().AnyAsync(x => x.idMoneda == request.IdMonedaTarifa && x.Activo, cancellationToken))
+        if (!await _context.Monedas.AsNoTracking().AnyAsync(x => x.IdMoneda == request.IdMonedaTarifa && x.Activo, cancellationToken))
             return "La moneda de tarifa indicada no existe o está inactiva.";
 
         return null;

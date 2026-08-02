@@ -1,4 +1,7 @@
-﻿public sealed class PagoResponseDto
+﻿
+namespace SGRVBackEnd.DTOs.Pagos;
+
+public sealed class PagoResponseDto
 {
     public int IdPago { get; set; }
     public int IdRenta { get; set; }

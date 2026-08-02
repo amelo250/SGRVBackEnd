@@ -1,5 +1,7 @@
-﻿using SGRVBackEnd.DTOs.Pagos;
+﻿
 using System.ComponentModel.DataAnnotations;
+
+namespace SGRVBackEnd.DTOs.Pagos;
 
 public sealed class PagoUpdateDto : PagoCreateDto
 {

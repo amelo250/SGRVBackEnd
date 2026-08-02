@@ -8,6 +8,7 @@ using SGRVBackEnd.Data;
 using SGRVBackEnd.Helpers;
 using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Auth;
+using SGRVBackEnd.Models.Usuarios;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -20,16 +21,18 @@ public class AuthController : ControllerBase
 {
     private readonly IConfiguration _configuration;
     private readonly AppDbContext _context;
-    private CancellationToken cancellationToken;
+    private readonly IPasswordHasher<Usuario> _passwordHasher;
 
-    public AuthController(IConfiguration configuration,AppDbContext context)
+
+    public AuthController(IConfiguration configuration,AppDbContext context, IPasswordHasher<Usuario> passwordHasher)
     {
         _configuration = configuration;
         _context = context;
+        _passwordHasher = passwordHasher;   
     }
 
     [HttpPost("login")]
-    public  async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public  async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         // Usuario temporal para prueba
         //if (request.email != "admin@rentcar.com" || request.password != "123456")
@@ -40,7 +43,13 @@ public class AuthController : ControllerBase
         //    });
         //}
 
-        var usuario = _context.Usuarios.FirstOrDefault(u => u.Email == request.email && u.Activo==true);
+        var email = request.email.Trim().ToLowerInvariant();
+
+        var usuario = await _context.Usuarios
+            .FirstOrDefaultAsync(
+                x => x.Email.ToLower() == email &&
+                     x.Activo,
+                cancellationToken);
 
         if (usuario == null)
         {
@@ -117,9 +126,7 @@ public class AuthController : ControllerBase
             Activo = request.Activo
         };
 
-        var passwordHash = new PasswordHasher<Models.Usuarios.Usuario>();
-
-        usuario.PasswordHash = passwordHash.HashPassword(usuario, request.Password);
+        var result = _passwordHasher.VerifyHashedPassword(usuario,usuario.PasswordHash,request.Password);
 
         _context.Usuarios.Add(usuario);
         await _context.SaveChangesAsync();

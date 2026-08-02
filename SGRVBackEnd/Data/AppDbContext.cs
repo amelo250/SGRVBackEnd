@@ -103,6 +103,50 @@ namespace SGRVBackEnd.Data
                     .HasForeignKey(x => x.IdRenta)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            modelBuilder.Entity<Models.Vehiculo.Vehiculo>(entity =>
+            {
+                entity.ToTable("Vehiculos");
+
+                entity.HasKey(x => x.IdVehiculo);
+
+                entity.Property(x => x.PrecioPorDia)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.DepositoCombustible)
+                    .HasPrecision(18, 2);
+            });
+            modelBuilder.Entity<Models.Renta.Renta>(entity =>
+            {
+                entity.ToTable("Rentas");
+
+                entity.HasKey(x => x.IdRenta);
+
+                entity.Property(x => x.PrecioPorDia)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.Subtotal)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.Impuestos)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.Descuentos)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.Total)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.Deposito)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.TasaCambioAplicada)
+                    .HasPrecision(18, 6);
+
+                entity.Property(x => x.TotalMonedaLocal)
+                    .HasPrecision(18, 2);
+            });
+
+
         }
     }
 
