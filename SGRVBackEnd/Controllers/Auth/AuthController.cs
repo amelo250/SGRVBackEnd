@@ -101,10 +101,21 @@ public class AuthController : ControllerBase
     [Authorize(Roles = "SUPADMIN")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request,CancellationToken cancellationToken)
-    { 
-        var existeusuario = await _context.Usuarios.AnyAsync(u => u.Email == request.Email, cancellationToken);
+    {
+        var emailNormalizado = request.Email
+    .Trim()
+    .ToLowerInvariant();
 
-        if (existeusuario) {
+
+
+        var existeUsuario = await _context.Usuarios
+    .AsNoTracking()
+    .AnyAsync(
+        usuario =>
+            usuario.Email.ToLower() == emailNormalizado,
+        cancellationToken);
+
+        if (existeUsuario) {
 
 
             return BadRequest(new
@@ -148,18 +159,25 @@ public class AuthController : ControllerBase
                 message = "El rol no existe o está inactivo."
             });
         }
-        var usuario = new Models.Usuarios.Usuario
+        var usuario = new Usuario
         {
-            
-            Nombre = request.Nombre,
-            Email = request.Email,
-            PasswordHash = request.Password,
+            Nombre = request.Nombre.Trim(),
+            Email = request.Email.Trim().ToLowerInvariant(),
+            Telefono = string.IsNullOrWhiteSpace(request.Telefono)
+        ? null
+        : request.Telefono.Trim(),
             IdEmpresa = request.IdEmpresa,
             IdRol = request.IdRol,
-            Activo = request.Activo
+            Activo = request.Activo,
+            FechaCreacion = DateTime.UtcNow,
+            PasswordHash = string.Empty
         };
+        usuario.PasswordHash = _passwordHasher.HashPassword(
+    usuario,
+    request.Password);
 
-        var result = _passwordHasher.VerifyHashedPassword(usuario,usuario.PasswordHash,request.Password);
+        
+        
 
         _context.Usuarios.Add(usuario);
         await _context.SaveChangesAsync(cancellationToken);
