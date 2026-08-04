@@ -30,4 +30,14 @@ public class ClienteCreateDto
 
     [MaxLength(250)]
     public string? Direccion { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string LicenciaConducir { get; set; } = string.Empty;
+
+    [Required]
+    public DateTime? FechaExpLicencia { get; set; }
+
+    [Required]
+    public DateTime? FechaVencLicencia { get; set; }
 }

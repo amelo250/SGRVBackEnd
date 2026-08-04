@@ -81,12 +81,14 @@ public sealed class ClientesController : BaseApiController
     {
         var idEmpresa = GetEmpresaId();
         var validationError = await ValidateRequest(
-            request.CedulaPasaporte,
-            request.Email,
-            request.FechaNacimiento,
-            idEmpresa,
-            null,
-            cancellationToken);
+    request.CedulaPasaporte,
+    request.Email,
+    request.FechaNacimiento,
+    request.FechaExpLicencia,
+    request.FechaVencLicencia,
+    idEmpresa,
+    null,
+    cancellationToken);
 
         if (validationError is not null)
             return Conflict(Failure<ClienteDto>(validationError));
@@ -102,9 +104,9 @@ public sealed class ClientesController : BaseApiController
             Email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty,
             Direccion = request.Direccion?.Trim() ?? string.Empty,
             Nacionalidad = request.Nacionalidad?.Trim() ?? string.Empty,
-            LicenciaConducir = string.Empty,
-            FechaExpLicencia = default,
-            FechaVencLicencia = default,
+            LicenciaConducir = request.LicenciaConducir.Trim().ToUpperInvariant(),
+            FechaExpLicencia = request.FechaExpLicencia!.Value,
+            FechaVencLicencia = request.FechaVencLicencia!.Value,
             Activo = true,
             FechaCreacion = DateTime.UtcNow
         };
@@ -134,12 +136,14 @@ public sealed class ClientesController : BaseApiController
             return NotFound(Failure<ClienteDto>("No se encontró el cliente solicitado."));
 
         var validationError = await ValidateRequest(
-            request.CedulaPasaporte,
-            request.Email,
-            request.FechaNacimiento,
-            idEmpresa,
-            id,
-            cancellationToken);
+    request.CedulaPasaporte,
+    request.Email,
+    request.FechaNacimiento,
+    request.FechaExpLicencia,
+    request.FechaVencLicencia,
+    idEmpresa,
+    id,
+    cancellationToken);
 
         if (validationError is not null)
             return Conflict(Failure<ClienteDto>(validationError));
@@ -152,7 +156,9 @@ public sealed class ClientesController : BaseApiController
         cliente.Email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
         cliente.Direccion = request.Direccion?.Trim() ?? string.Empty;
         cliente.Nacionalidad = request.Nacionalidad?.Trim() ?? string.Empty;
-
+        cliente.LicenciaConducir =request.LicenciaConducir.Trim().ToUpperInvariant();
+        cliente.FechaExpLicencia = request.FechaExpLicencia!.Value;
+        cliente.FechaVencLicencia = request.FechaVencLicencia!.Value;
         await _context.SaveChangesAsync(cancellationToken);
         return Ok(Success(Map(cliente), "Cliente actualizado correctamente."));
     }
@@ -183,17 +189,86 @@ public sealed class ClientesController : BaseApiController
             new { cliente.IdCliente, cliente.Activo },
             "Cliente desactivado correctamente."));
     }
+    [HttpPatch("{id:int}/restaurar")]
+    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    public async Task<ActionResult<ApiResponse<ClienteDto>>> Restore(
+    int id,
+    CancellationToken cancellationToken = default)
+    {
+        var idEmpresa = GetEmpresaId();
+
+        var cliente = await _context.Clientes.FirstOrDefaultAsync(
+            x => x.IdCliente == id &&
+                 x.IdEmpresa == idEmpresa,
+            cancellationToken);
+
+        if (cliente is null)
+        {
+            return NotFound(
+                Failure<ClienteDto>(
+                    "No se encontró el cliente solicitado."));
+        }
+
+        if (cliente.Activo)
+        {
+            return Conflict(
+                Failure<ClienteDto>(
+                    "El cliente ya se encuentra activo."));
+        }
+
+        var duplicateDocument = await _context.Clientes
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.IdEmpresa == idEmpresa &&
+                    x.IdCliente != id &&
+                    x.CedulaPasaporte == cliente.CedulaPasaporte &&
+                    x.Activo,
+                cancellationToken);
+
+        if (duplicateDocument)
+        {
+            return Conflict(
+                Failure<ClienteDto>(
+                    "No se puede restaurar porque existe otro cliente activo con la misma cédula o pasaporte."));
+        }
+
+        cliente.Activo = true;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(
+            Success(
+                Map(cliente),
+                "Cliente restaurado correctamente."));
+    }
 
     private async Task<string?> ValidateRequest(
         string cedulaPasaporte,
         string? email,
         DateTime fechaNacimiento,
+         DateTime? fechaExpLicencia,
+        DateTime? fechaVencLicencia,
         int idEmpresa,
         int? idCliente,
         CancellationToken cancellationToken)
     {
         if (fechaNacimiento.Date > DateTime.UtcNow.Date)
             return "La fecha de nacimiento no puede estar en el futuro.";
+
+
+        if (!fechaExpLicencia.HasValue ||
+        !fechaVencLicencia.HasValue)
+        {
+            return "Debe indicar las fechas de expedición y vencimiento de la licencia.";
+        }
+
+        if (fechaVencLicencia.Value.Date <=
+            fechaExpLicencia.Value.Date)
+        {
+            return "La fecha de vencimiento debe ser posterior a la fecha de expedición.";
+        }
+
 
         var document = cedulaPasaporte.Trim().ToUpperInvariant();
         var duplicateDocument = await _context.Clientes.AsNoTracking().AnyAsync(x =>

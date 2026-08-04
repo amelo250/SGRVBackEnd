@@ -1,33 +1,85 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SGRVBackEnd.Helpers;
-using System.Net;
-using System.Text.Json;
-using static System.Net.Mime.MediaTypeNames;
+﻿using System.Net;
+using SGRVBackEnd.Shared;
 
-using System.Net; 
-using System.Text.Json; 
-using SGRVBackEnd.Helpers; 
+namespace SGRVBackEnd.Middleware;
 
-namespace SGRVBackEnd.Middleware
+public sealed class ExceptionMiddleware
 {
-    public class ExceptionMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
+    private readonly IWebHostEnvironment _environment;
+
+    public ExceptionMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionMiddleware> logger,
+        IWebHostEnvironment environment)
     {
-        private readonly RequestDelegate _next; private readonly ILogger<ExceptionMiddleware> _logger; private readonly IWebHostEnvironment _environment; public ExceptionMiddleware(RequestDelegate next, ILogger < ExceptionMiddleware > logger, IWebHostEnvironment environment)
+        _next = next;
+        _logger = logger;
+        _environment = environment;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
         {
-            _next = next; _logger = logger; _environment = environment;
+            await _next(context);
         }
-        public async Task InvokeAsync(HttpContext context)
+        catch (UnauthorizedAccessException exception)
         {
-            try
-            {
-                await _next(context);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error no controlado"); context.Response.ContentType = "application/json"; context.Response.StatusCode =
-                    (int)HttpStatusCode.InternalServerError; var mensaje = _environment.IsDevelopment() ? ex.Message
-                    : "Ocurrió un error interno en el servidor."; var respuesta = ApiResponseHelper<object>.Fallido(mensaje); var json = JsonSerializer.Serialize(respuesta); await context   .Response.WriteAsync(json);
-            }
+            _logger.LogWarning(
+                exception,
+                "Solicitud no autorizada en {Path}.",
+                context.Request.Path);
+
+            await WriteResponse(
+                context,
+                HttpStatusCode.Unauthorized,
+                exception.Message);
         }
+        catch (OperationCanceledException)
+            when (context.RequestAborted.IsCancellationRequested)
+        {
+            _logger.LogInformation(
+                "Solicitud cancelada por el cliente en {Path}.",
+                context.Request.Path);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Error no controlado en {Path}.",
+                context.Request.Path);
+
+            var message = _environment.IsDevelopment()
+                ? exception.Message
+                : "Ocurrió un error interno en el servidor.";
+
+            await WriteResponse(
+                context,
+                HttpStatusCode.InternalServerError,
+                message);
+        }
+    }
+
+    private static async Task WriteResponse(
+        HttpContext context,
+        HttpStatusCode statusCode,
+        string message)
+    {
+        if (context.Response.HasStarted)
+            return;
+
+        context.Response.Clear();
+        context.Response.StatusCode = (int)statusCode;
+        context.Response.ContentType = "application/json";
+
+        var response = new ApiResponse<object>
+        {
+            Success = false,
+            Message = message
+        };
+
+        await context.Response.WriteAsJsonAsync(response);
     }
 }
