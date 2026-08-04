@@ -1,33 +1,33 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace SGRVBackEnd.DTOs.Clientes
+namespace SGRVBackEnd.DTOs.Clientes;
+
+public class ClienteUpdateDto
 {
-    public class ClienteUpdateDto
-    {
-        [Required]
-        [MaxLength(100)]
-        public string Nombre { get; set; } = string.Empty;
+    [Required]
+    [MaxLength(100)]
+    public string Nombre { get; set; } = string.Empty;
 
-        [Required]
-        [MaxLength(100)]
-        public string Apellido { get; set; } = string.Empty;
+    [Required]
+    [MaxLength(100)]
+    public string Apellido { get; set; } = string.Empty;
 
-        [Required]
-        [MaxLength(50)]
-        public string CedulaPasaporte { get; set; } = string.Empty;
+    [Required]
+    [MaxLength(50)]
+    public string CedulaPasaporte { get; set; } = string.Empty;
 
-        [MaxLength(20)]
-        public string? Telefono { get; set; }
+    [MaxLength(20)]
+    public string? Telefono { get; set; }
 
-        [EmailAddress]
-        [MaxLength(150)]
-        public string? Email { get; set; }
+    public DateTime FechaNacimiento { get; set; }
 
-        [MaxLength(250)]
-        public string? Direccion { get; set; }
-        public DateTime FechaNacimiento { get; set; }
-        public int IdEmpresa { get; set; }
+    [MaxLength(100)]
+    public string? Nacionalidad { get; set; }
 
-        public bool Activo { get; set; }
-    }
+    [EmailAddress]
+    [MaxLength(150)]
+    public string? Email { get; set; }
+
+    [MaxLength(250)]
+    public string? Direccion { get; set; }
 }
