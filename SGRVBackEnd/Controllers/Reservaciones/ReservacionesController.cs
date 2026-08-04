@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SGRVBackEnd.Data;
 using SGRVBackEnd.DTOs.Reservaciones;
+using SGRVBackEnd.Helpers;
 using SGRVBackEnd.Models.Reservaciones;
+using SGRVBackEnd.Services.Reservations;
 using SGRVBackEnd.Shared;
+using System.Data;
 
 namespace SGRVBackEnd.Controllers;
 
@@ -13,14 +16,16 @@ namespace SGRVBackEnd.Controllers;
 [Route("api/reservaciones")]
 public sealed class ReservacionesController : BaseApiController
 {
-    private const string CategoriaReservacion = "RESERVACION";
-    private const string CodigoPendiente = "PENDIENTE";
-    private const string CodigoConfirmada = "CONFIRMADA";
-    private const string CodigoCancelada = "CANCELADA";
-    private const string CodigoConvertida = "CONVERTIDA";
     private readonly AppDbContext _context;
+    private readonly IReservationAvailabilityService _availability;
 
-    public ReservacionesController(AppDbContext context) => _context = context;
+    public ReservacionesController(
+        AppDbContext context,
+        IReservationAvailabilityService availability)
+    {
+        _context = context;
+        _availability = availability;
+    }
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<ReservacionResponseDto>>>> GetAll(
@@ -33,9 +38,9 @@ public sealed class ReservacionesController : BaseApiController
         if (search.IdEstado.HasValue)
             query = query.Where(x => x.IdEstado == search.IdEstado.Value);
         if (search.FechaDesde.HasValue)
-            query = query.Where(x => x.FechaFin >= search.FechaDesde.Value);
+            query = query.Where(x => x.FechaFin >= search.FechaDesde.Value.UtcDateTime);
         if (search.FechaHasta.HasValue)
-            query = query.Where(x => x.FechaInicio <= search.FechaHasta.Value);
+            query = query.Where(x => x.FechaInicio <= search.FechaHasta.Value.UtcDateTime);
 
         var term = search.Search?.Trim();
         if (!string.IsNullOrWhiteSpace(term))
@@ -85,8 +90,8 @@ public sealed class ReservacionesController : BaseApiController
         var data = await BuildResponseQuery(GetEmpresaId())
             .Where(x =>
                 x.FechaInicio >= now &&
-                x.EstadoCodigo != CodigoCancelada &&
-                x.EstadoCodigo != CodigoConvertida)
+                x.EstadoCodigo != ReservationConstants.Cancelled &&
+                x.EstadoCodigo != ReservationConstants.Converted)
             .OrderBy(x => x.FechaInicio)
             .Take(take)
             .ToListAsync(cancellationToken);
@@ -98,9 +103,8 @@ public sealed class ReservacionesController : BaseApiController
     [HttpGet("disponibilidad")]
     public async Task<ActionResult<ApiResponse<object>>> GetAvailability(
         [FromQuery] int idVehiculo,
-        [FromQuery] DateTime fechaInicio,
-        [FromQuery] DateTime fechaFin,
-        [FromQuery] int? excluirIdReservacion = null,
+        [FromQuery] DateTimeOffset fechaInicio,
+        [FromQuery] DateTimeOffset fechaFin,
         CancellationToken cancellationToken = default)
     {
         var validation = ValidateDates(fechaInicio, fechaFin);
@@ -115,9 +119,9 @@ public sealed class ReservacionesController : BaseApiController
             return NotFound(Failure<object>(
                 "No se encontró el vehículo solicitado."));
 
-        var available = !await HasOverlap(
-            idEmpresa, idVehiculo, fechaInicio, fechaFin,
-            excluirIdReservacion, cancellationToken);
+        var available = !await _availability.HasOverlapAsync(
+            idEmpresa, idVehiculo, fechaInicio.UtcDateTime, fechaFin.UtcDateTime,
+            null, cancellationToken);
 
         return Ok(Success<object>(
             new { IdVehiculo = idVehiculo, Disponible = available },
@@ -127,18 +131,21 @@ public sealed class ReservacionesController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = ApplicationRoles.ReservationManagers)]
     public async Task<ActionResult<ApiResponse<ReservacionResponseDto>>> Create(
         [FromBody] ReservacionCreateDto request,
         CancellationToken cancellationToken = default)
     {
         var idEmpresa = GetEmpresaId();
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
         var validation = await ValidateRequest(
             request, idEmpresa, null, cancellationToken);
         if (validation is not null)
-            return Conflict(Failure<ReservacionResponseDto>(validation));
+            return ValidationFailure<ReservacionResponseDto>(validation);
 
-        var idEstado = await GetStateId(CodigoPendiente, cancellationToken);
+        var idEstado = await GetStateId(ReservationConstants.Pending, cancellationToken);
         if (!idEstado.HasValue)
             return BadRequest(Failure<ReservacionResponseDto>(
                 "No existe el estado RESERVACION/PENDIENTE."));
@@ -149,14 +156,15 @@ public sealed class ReservacionesController : BaseApiController
             IdVehiculo = request.IdVehiculo,
             IdCliente = request.IdCliente,
             IdEstado = idEstado.Value,
-            FechaInicio = request.FechaInicio,
-            FechaFin = request.FechaFin,
+            FechaInicio = request.FechaInicio.UtcDateTime,
+            FechaFin = request.FechaFin.UtcDateTime,
             Observacion = request.Observacion?.Trim() ?? string.Empty,
             FechaCreacion = DateTime.UtcNow
         };
 
         _context.Reservaciones.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         var result = await BuildResponseQuery(idEmpresa)
             .FirstAsync(x => x.IdReservacion == entity.IdReservacion, cancellationToken);
 
@@ -167,7 +175,7 @@ public sealed class ReservacionesController : BaseApiController
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = ApplicationRoles.ReservationManagers)]
     public async Task<ActionResult<ApiResponse<ReservacionResponseDto>>> Update(
         int id,
         [FromBody] ReservacionUpdateDto request,
@@ -182,22 +190,25 @@ public sealed class ReservacionesController : BaseApiController
                 "No se encontró la reservación solicitada."));
 
         var currentCode = await GetStateCode(entity.IdEstado, cancellationToken);
-        if (currentCode is CodigoCancelada or CodigoConvertida)
+        if (currentCode is not (ReservationConstants.Pending or ReservationConstants.Confirmed))
             return Conflict(Failure<ReservacionResponseDto>(
                 "La reservación no puede modificarse en su estado actual."));
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
         var validation = await ValidateRequest(
             request, idEmpresa, id, cancellationToken);
         if (validation is not null)
-            return Conflict(Failure<ReservacionResponseDto>(validation));
+            return ValidationFailure<ReservacionResponseDto>(validation);
 
         entity.IdVehiculo = request.IdVehiculo;
         entity.IdCliente = request.IdCliente;
-        entity.FechaInicio = request.FechaInicio;
-        entity.FechaFin = request.FechaFin;
+        entity.FechaInicio = request.FechaInicio.UtcDateTime;
+        entity.FechaFin = request.FechaFin.UtcDateTime;
         entity.Observacion = request.Observacion?.Trim() ?? string.Empty;
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         var result = await BuildResponseQuery(idEmpresa)
             .FirstAsync(x => x.IdReservacion == id, cancellationToken);
 
@@ -205,22 +216,22 @@ public sealed class ReservacionesController : BaseApiController
     }
 
     [HttpPatch("{id:int}/confirmar")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = ApplicationRoles.ReservationManagers)]
     public Task<ActionResult<ApiResponse<ReservacionResponseDto>>> Confirm(
         int id,
         CancellationToken cancellationToken = default) =>
-        ChangeState(id, CodigoPendiente, CodigoConfirmada,
+        ChangeState(id, ReservationConstants.Pending, ReservationConstants.Confirmed,
             "Reservación confirmada correctamente.", cancellationToken);
 
     [HttpPatch("{id:int}/cancelar")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = ApplicationRoles.ReservationManagers)]
     public Task<ActionResult<ApiResponse<ReservacionResponseDto>>> Cancel(
         int id,
         CancellationToken cancellationToken = default) =>
         CancelInternal(id, cancellationToken);
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = ApplicationRoles.ReservationManagers)]
     public Task<ActionResult<ApiResponse<ReservacionResponseDto>>> Delete(
         int id,
         CancellationToken cancellationToken = default) =>
@@ -239,14 +250,14 @@ public sealed class ReservacionesController : BaseApiController
                 "No se encontró la reservación solicitada."));
 
         var currentCode = await GetStateCode(entity.IdEstado, cancellationToken);
-        if (currentCode == CodigoCancelada)
+        if (currentCode == ReservationConstants.Cancelled)
             return Conflict(Failure<ReservacionResponseDto>(
                 "La reservación ya se encuentra cancelada."));
-        if (currentCode == CodigoConvertida)
+        if (currentCode == ReservationConstants.Converted)
             return Conflict(Failure<ReservacionResponseDto>(
                 "Una reservación convertida no puede cancelarse."));
 
-        var targetId = await GetStateId(CodigoCancelada, cancellationToken);
+        var targetId = await GetStateId(ReservationConstants.Cancelled, cancellationToken);
         if (!targetId.HasValue)
             return BadRequest(Failure<ReservacionResponseDto>(
                 "No existe el estado RESERVACION/CANCELADA."));
@@ -277,7 +288,12 @@ public sealed class ReservacionesController : BaseApiController
         if (currentCode != requiredCode)
             return Conflict(Failure<ReservacionResponseDto>(
                 $"La reservación debe estar en estado {requiredCode}."));
-        if (await HasOverlap(
+        var validation = await ValidateRelatedEntities(
+            entity.IdCliente, entity.IdVehiculo, idEmpresa, cancellationToken);
+        if (validation is not null)
+            return ValidationFailure<ReservacionResponseDto>(validation);
+
+        if (await _availability.HasOverlapAsync(
                 idEmpresa, entity.IdVehiculo, entity.FechaInicio, entity.FechaFin,
                 id, cancellationToken))
             return Conflict(Failure<ReservacionResponseDto>(
@@ -286,7 +302,7 @@ public sealed class ReservacionesController : BaseApiController
         var targetId = await GetStateId(targetCode, cancellationToken);
         if (!targetId.HasValue)
             return BadRequest(Failure<ReservacionResponseDto>(
-                $"No existe el estado {CategoriaReservacion}/{targetCode}."));
+                $"No existe el estado {ReservationConstants.Category}/{targetCode}."));
 
         entity.IdEstado = targetId.Value;
         await _context.SaveChangesAsync(cancellationToken);
@@ -295,70 +311,52 @@ public sealed class ReservacionesController : BaseApiController
         return Ok(Success(result, message));
     }
 
-    private async Task<string?> ValidateRequest(
+    private async Task<RequestValidationError?> ValidateRequest(
         ReservacionCreateDto request,
         int idEmpresa,
         int? idReservacion,
         CancellationToken cancellationToken)
     {
         var dateError = ValidateDates(request.FechaInicio, request.FechaFin);
-        if (dateError is not null) return dateError;
+        if (dateError is not null)
+            return new RequestValidationError(dateError, ValidationErrorKind.InvalidInput);
 
-        if (!await _context.Clientes.AsNoTracking().AnyAsync(x =>
-                x.IdCliente == request.IdCliente &&
-                x.IdEmpresa == idEmpresa && x.Activo, cancellationToken))
-            return "El cliente no existe, está inactivo o no pertenece a la empresa.";
+        var relatedError = await ValidateRelatedEntities(
+            request.IdCliente, request.IdVehiculo, idEmpresa, cancellationToken);
+        if (relatedError is not null)
+            return relatedError;
 
-        if (!await _context.Vehiculos.AsNoTracking().AnyAsync(x =>
-                x.IdVehiculo == request.IdVehiculo &&
-                x.IdEmpresa == idEmpresa && x.Activo, cancellationToken))
-            return "El vehículo no existe, está inactivo o no pertenece a la empresa.";
-
-        return await HasOverlap(
-            idEmpresa, request.IdVehiculo, request.FechaInicio, request.FechaFin,
+        return await _availability.HasOverlapAsync(
+            idEmpresa, request.IdVehiculo,
+            request.FechaInicio.UtcDateTime, request.FechaFin.UtcDateTime,
             idReservacion, cancellationToken)
-            ? "El vehículo ya tiene una reservación o renta para el periodo indicado."
+            ? new RequestValidationError(
+                "El vehículo ya tiene una reservación o renta para el periodo indicado.",
+                ValidationErrorKind.Conflict)
             : null;
     }
 
-    private async Task<bool> HasOverlap(
-        int idEmpresa,
-        int idVehiculo,
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        int? excludeReservationId,
+    private async Task<RequestValidationError?> ValidateRelatedEntities(
+        int clientId,
+        int vehicleId,
+        int companyId,
         CancellationToken cancellationToken)
     {
-        var reservationOverlap = await (
-            from reservation in _context.Reservaciones.AsNoTracking()
-            join state in _context.Estados.AsNoTracking()
-                on reservation.IdEstado equals state.IdEstado
-            where reservation.IdEmpresa == idEmpresa &&
-                  reservation.IdVehiculo == idVehiculo &&
-                  (!excludeReservationId.HasValue ||
-                   reservation.IdReservacion != excludeReservationId.Value) &&
-                  state.Categoria == CategoriaReservacion &&
-                  state.Codigo != CodigoCancelada &&
-                  state.Codigo != CodigoConvertida &&
-                  reservation.FechaInicio < fechaFin &&
-                  reservation.FechaFin > fechaInicio
-            select reservation.IdReservacion)
-            .AnyAsync(cancellationToken);
-        if (reservationOverlap) return true;
+        if (!await _context.Clientes.AsNoTracking().AnyAsync(x =>
+                x.IdCliente == clientId && x.IdEmpresa == companyId && x.Activo,
+                cancellationToken))
+            return new RequestValidationError(
+                "No se encontró un cliente activo con el identificador indicado.",
+                ValidationErrorKind.NotFound);
 
-        return await (
-            from rental in _context.Rentas.AsNoTracking()
-            join state in _context.Estados.AsNoTracking()
-                on rental.IdEstado equals state.IdEstado
-            where rental.IdEmpresa == idEmpresa &&
-                  rental.IdVehiculo == idVehiculo &&
-                  state.Categoria == "RENTA" &&
-                  state.Codigo != "CANCELADA" &&
-                  state.Codigo != "FINALIZADA" &&
-                  rental.FechaInicio < fechaFin &&
-                  rental.FechaFin > fechaInicio
-            select rental.IdRenta)
-            .AnyAsync(cancellationToken);
+        if (!await _context.Vehiculos.AsNoTracking().AnyAsync(x =>
+                x.IdVehiculo == vehicleId && x.IdEmpresa == companyId && x.Activo,
+                cancellationToken))
+            return new RequestValidationError(
+                "No se encontró un vehículo activo con el identificador indicado.",
+                ValidationErrorKind.NotFound);
+
+        return null;
     }
 
     private IQueryable<ReservacionResponseDto> BuildResponseQuery(int idEmpresa) =>
@@ -372,7 +370,7 @@ public sealed class ReservacionesController : BaseApiController
         where reservation.IdEmpresa == idEmpresa &&
               vehicle.IdEmpresa == idEmpresa &&
               client.IdEmpresa == idEmpresa &&
-              state.Categoria == CategoriaReservacion
+              state.Categoria == ReservationConstants.Category
         select new ReservacionResponseDto
         {
             IdReservacion = reservation.IdReservacion,
@@ -392,7 +390,7 @@ public sealed class ReservacionesController : BaseApiController
 
     private Task<int?> GetStateId(string code, CancellationToken cancellationToken) =>
         _context.Estados.AsNoTracking()
-            .Where(x => x.Categoria == CategoriaReservacion &&
+            .Where(x => x.Categoria == ReservationConstants.Category &&
                         x.Codigo == code && x.Activo)
             .Select(x => (int?)x.IdEstado)
             .FirstOrDefaultAsync(cancellationToken);
@@ -402,11 +400,11 @@ public sealed class ReservacionesController : BaseApiController
         CancellationToken cancellationToken) =>
         await _context.Estados.AsNoTracking()
             .Where(x => x.IdEstado == idEstado &&
-                        x.Categoria == CategoriaReservacion)
+                        x.Categoria == ReservationConstants.Category)
             .Select(x => x.Codigo)
             .FirstOrDefaultAsync(cancellationToken);
 
-    private static string? ValidateDates(DateTime start, DateTime end) =>
+    private static string? ValidateDates(DateTimeOffset start, DateTimeOffset end) =>
         start == default || end == default
             ? "Debe indicar las fechas de inicio y fin."
             : end <= start
@@ -418,4 +416,18 @@ public sealed class ReservacionesController : BaseApiController
 
     private static ApiResponse<T> Failure<T>(string message) =>
         new() { Success = false, Message = message };
+
+    private ActionResult<ApiResponse<T>> ValidationFailure<T>(
+        RequestValidationError error) => error.Kind switch
+        {
+            ValidationErrorKind.NotFound => NotFound(Failure<T>(error.Message)),
+            ValidationErrorKind.Conflict => Conflict(Failure<T>(error.Message)),
+            _ => BadRequest(Failure<T>(error.Message))
+        };
+
+    private enum ValidationErrorKind { InvalidInput, NotFound, Conflict }
+
+    private sealed record RequestValidationError(
+        string Message,
+        ValidationErrorKind Kind);
 }

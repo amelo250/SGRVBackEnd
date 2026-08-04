@@ -13,7 +13,9 @@ public sealed class ReservacionSearchDto
     [MaxLength(150)]
     public string? Search { get; set; }
 
+    [Range(1, int.MaxValue)]
     public int? IdEstado { get; set; }
-    public DateTime? FechaDesde { get; set; }
-    public DateTime? FechaHasta { get; set; }
+
+    public DateTimeOffset? FechaDesde { get; set; }
+    public DateTimeOffset? FechaHasta { get; set; }
 }
