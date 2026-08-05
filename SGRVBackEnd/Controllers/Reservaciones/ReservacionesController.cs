@@ -182,6 +182,9 @@ public sealed class ReservacionesController : BaseApiController
         CancellationToken cancellationToken = default)
     {
         var idEmpresa = GetEmpresaId();
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
         var entity = await _context.Reservaciones.FirstOrDefaultAsync(
             x => x.IdReservacion == id && x.IdEmpresa == idEmpresa,
             cancellationToken);
@@ -194,8 +197,6 @@ public sealed class ReservacionesController : BaseApiController
             return Conflict(Failure<ReservacionResponseDto>(
                 "La reservación no puede modificarse en su estado actual."));
 
-        await using var transaction = await _context.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable, cancellationToken);
         var validation = await ValidateRequest(
             request, idEmpresa, id, cancellationToken);
         if (validation is not null)
@@ -242,7 +243,7 @@ public sealed class ReservacionesController : BaseApiController
         CancellationToken cancellationToken)
     {
         var idEmpresa = GetEmpresaId();
-        var entity = await _context.Reservaciones.FirstOrDefaultAsync(
+        var entity = await _context.Reservaciones.AsNoTracking().FirstOrDefaultAsync(
             x => x.IdReservacion == id && x.IdEmpresa == idEmpresa,
             cancellationToken);
         if (entity is null)
@@ -262,8 +263,17 @@ public sealed class ReservacionesController : BaseApiController
             return BadRequest(Failure<ReservacionResponseDto>(
                 "No existe el estado RESERVACION/CANCELADA."));
 
-        entity.IdEstado = targetId.Value;
-        await _context.SaveChangesAsync(cancellationToken);
+        var affected = await _context.Reservaciones
+            .Where(x => x.IdReservacion == id &&
+                        x.IdEmpresa == idEmpresa &&
+                        x.IdEstado == entity.IdEstado)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(x => x.IdEstado, targetId.Value),
+                cancellationToken);
+        if (affected != 1)
+            return Conflict(Failure<ReservacionResponseDto>(
+                "La reservación cambió de estado durante la operación. Inténtalo nuevamente."));
+
         var result = await BuildResponseQuery(idEmpresa)
             .FirstAsync(x => x.IdReservacion == id, cancellationToken);
         return Ok(Success(result, "Reservación cancelada correctamente."));
@@ -277,7 +287,10 @@ public sealed class ReservacionesController : BaseApiController
         CancellationToken cancellationToken)
     {
         var idEmpresa = GetEmpresaId();
-        var entity = await _context.Reservaciones.FirstOrDefaultAsync(
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
+        var entity = await _context.Reservaciones.AsNoTracking().FirstOrDefaultAsync(
             x => x.IdReservacion == id && x.IdEmpresa == idEmpresa,
             cancellationToken);
         if (entity is null)
@@ -304,8 +317,18 @@ public sealed class ReservacionesController : BaseApiController
             return BadRequest(Failure<ReservacionResponseDto>(
                 $"No existe el estado {ReservationConstants.Category}/{targetCode}."));
 
-        entity.IdEstado = targetId.Value;
-        await _context.SaveChangesAsync(cancellationToken);
+        var affected = await _context.Reservaciones
+            .Where(x => x.IdReservacion == id &&
+                        x.IdEmpresa == idEmpresa &&
+                        x.IdEstado == entity.IdEstado)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(x => x.IdEstado, targetId.Value),
+                cancellationToken);
+        if (affected != 1)
+            return Conflict(Failure<ReservacionResponseDto>(
+                "La reservación cambió de estado durante la operación. Inténtalo nuevamente."));
+
+        await transaction.CommitAsync(cancellationToken);
         var result = await BuildResponseQuery(idEmpresa)
             .FirstAsync(x => x.IdReservacion == id, cancellationToken);
         return Ok(Success(result, message));

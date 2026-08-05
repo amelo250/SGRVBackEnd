@@ -3,6 +3,7 @@ using SGRVBackEnd.Models;
 using SGRVBackEnd.Models.Catalogo;
 using SGRVBackEnd.Models.Pago;
 using SGRVBackEnd.Models.Reservaciones;
+using SGRVBackEnd.Configurations;
 
 namespace SGRVBackEnd.Data
 {
@@ -30,6 +31,7 @@ namespace SGRVBackEnd.Data
         public DbSet<Models.Pago.Pago> Pagos => Set<Models.Pago.Pago>();
         public DbSet<Reservacion> Reservaciones =>Set<Reservacion>();
         public DbSet<Models.ProveedoresVehiculos.ProveedorVehiculo> ProveedoresVehiculos => Set<Models.ProveedoresVehiculos.ProveedorVehiculo>();
+        public DbSet<Models.AcuerdoVehiculoProveedor.AcuerdoVehiculoProveedor> AcuerdosVehiculosProveedor => Set<Models.AcuerdoVehiculoProveedor.AcuerdoVehiculoProveedor>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Models.Usuarios.Usuario>(entity =>
@@ -146,6 +148,9 @@ namespace SGRVBackEnd.Data
                 entity.Property(x => x.TotalMonedaLocal)
                     .HasPrecision(18, 2);
             });
+
+            modelBuilder.ApplyConfiguration(new RentaConfiguration());
+            modelBuilder.ApplyConfiguration(new AcuerdoVehiculoProveedorConfiguration());
 
 
         }

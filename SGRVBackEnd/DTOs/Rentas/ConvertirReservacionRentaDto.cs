@@ -2,17 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SGRVBackEnd.DTOs.Rentas;
 
-public sealed class RentaUpdateDto
+public sealed class ConvertirReservacionRentaDto
 {
-    [Range(1, int.MaxValue)]
-    public int IdCliente { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int IdVehiculo { get; set; }
-
-    public DateTimeOffset FechaInicio { get; set; }
-    public DateTimeOffset FechaFin { get; set; }
-
     [Range(typeof(decimal), "0", "9999999999999999.99")]
     public decimal Impuestos { get; set; }
 
@@ -27,7 +18,4 @@ public sealed class RentaUpdateDto
 
     [MaxLength(500)]
     public string? Observaciones { get; set; }
-
-    [Required]
-    public string RowVersion { get; set; } = string.Empty;
 }

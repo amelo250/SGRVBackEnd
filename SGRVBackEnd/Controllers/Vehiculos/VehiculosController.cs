@@ -6,6 +6,7 @@ using SGRVBackEnd.DTOs.Vehiculos;
 using SGRVBackEnd.Enums;
 using SGRVBackEnd.Models.Vehiculo;
 using SGRVBackEnd.Shared;
+using SGRVBackEnd.Helpers;
 
 namespace SGRVBackEnd.Controllers;
 
@@ -14,7 +15,6 @@ namespace SGRVBackEnd.Controllers;
 [Route("api/vehiculos")]
 public sealed class VehiculosController : BaseApiController
 {
-    private const int IdEstadoRentaActivaLegacy = 6;
     private readonly AppDbContext _context;
 
     public VehiculosController(AppDbContext context) => _context = context;
@@ -190,9 +190,15 @@ public sealed class VehiculosController : BaseApiController
             .FirstOrDefaultAsync(x => x.IdVehiculo == id && x.IdEmpresa == idEmpresa, cancellationToken);
         if (vehiculo is null) return NotFound(Failure<object>("No se encontró el vehículo solicitado."));
 
-        var tieneRentaActiva = await _context.Rentas.AsNoTracking().AnyAsync(x =>
-            x.IdEmpresa == idEmpresa && x.IdVehiculo == id && x.IdEstado == IdEstadoRentaActivaLegacy,
-            cancellationToken);
+        var tieneRentaActiva = await (
+            from renta in _context.Rentas.AsNoTracking()
+            join estado in _context.Estados.AsNoTracking()
+                on renta.IdEstado equals estado.IdEstado
+            where renta.IdEmpresa == idEmpresa &&
+                  renta.IdVehiculo == id &&
+                  estado.Categoria == RentalConstants.Category &&
+                  estado.Codigo == RentalConstants.Active
+            select renta.IdRenta).AnyAsync(cancellationToken);
         if (tieneRentaActiva)
             return Conflict(Failure<object>("No se puede desactivar un vehículo con una renta activa."));
 
