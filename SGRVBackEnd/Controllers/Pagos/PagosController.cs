@@ -5,6 +5,7 @@ using SGRVBackEnd.Data;
 using SGRVBackEnd.DTOs.Pagos;
 using SGRVBackEnd.Models.Pago;
 using SGRVBackEnd.Shared;
+using SGRVBackEnd.Validators;
 
 namespace SGRVBackEnd.Controllers.Pagos;
 
@@ -28,55 +29,62 @@ public sealed class PagosController : BaseApiController
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<PagoResponseDto>>>>
         GetAll(
-            [FromQuery] int? idRenta,
-            [FromQuery] bool incluirInactivos = false,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 20,
+            [FromQuery] PagoSearchDto search,
             CancellationToken cancellationToken = default)
     {
-        if (pageNumber < 1)
-        {
-            return BadRequest(
-                Failure<IEnumerable<PagoResponseDto>>(
-                    "El número de página debe ser mayor que cero."));
-        }
-
-        if (pageSize is < 1 or > 100)
-        {
-            return BadRequest(
-                Failure<IEnumerable<PagoResponseDto>>(
-                    "El tamaño de página debe estar entre 1 y 100."));
-        }
-
         var idEmpresa = GetEmpresaId();
 
         var query = _context.Pagos
             .AsNoTracking()
             .Where(p => p.IdEmpresa == idEmpresa);
 
-        if (idRenta.HasValue)
-        {
-            query = query.Where(p => p.IdRenta == idRenta.Value);
-        }
-
-        if (!incluirInactivos)
+        if (search.IdRenta.HasValue)
+            query = query.Where(p => p.IdRenta == search.IdRenta.Value);
+        if (search.IdMetodoPago.HasValue)
+            query = query.Where(p => p.IdMetodoPago == search.IdMetodoPago.Value);
+        if (search.IdEstado.HasValue)
+            query = query.Where(p => p.IdEstado == search.IdEstado.Value);
+        if (search.FechaDesde.HasValue)
+            query = query.Where(p => p.FechaPago >= search.FechaDesde.Value);
+        if (search.FechaHasta.HasValue)
+            query = query.Where(p => p.FechaPago <= search.FechaHasta.Value);
+        if (!search.IncluirInactivos)
         {
             query = query.Where(p => p.Activo);
         }
 
+        var term = search.Search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+            query = query.Where(p =>
+                (p.Referencia != null && p.Referencia.Contains(term)) ||
+                (p.Observaciones != null && p.Observaciones.Contains(term)));
+
+        var total = await query.CountAsync(cancellationToken);
+
         var pagos = await (
             from pago in query
-            join moneda in _context.Monedas.AsNoTracking()
-                on pago.IdMoneda equals moneda.IdMoneda
+            join moneda in _context.Monedas.AsNoTracking() on pago.IdMoneda equals moneda.IdMoneda
+            join metodo in _context.MetodosPago.AsNoTracking() on pago.IdMetodoPago equals metodo.IdMetodoPago
+            join estado in _context.Estados.AsNoTracking() on pago.IdEstado equals estado.IdEstado
+            join renta in _context.Rentas.AsNoTracking() on pago.IdRenta equals renta.IdRenta
+            join cliente in _context.Clientes.AsNoTracking() on renta.IdCliente equals cliente.IdCliente
+            join vehiculo in _context.Vehiculos.AsNoTracking() on renta.IdVehiculo equals vehiculo.IdVehiculo
+            where renta.IdEmpresa == idEmpresa && cliente.IdEmpresa == idEmpresa && vehiculo.IdEmpresa == idEmpresa
             orderby pago.FechaPago descending
             select new PagoResponseDto
             {
                 IdPago = pago.IdPago,
                 IdRenta = pago.IdRenta,
                 IdMetodoPago = pago.IdMetodoPago,
+                MetodoPagoNombre = metodo.Nombre,
                 IdEstado = pago.IdEstado,
+                EstadoCodigo = estado.Codigo,
+                EstadoNombre = estado.Nombre,
                 IdMoneda = pago.IdMoneda,
                 CodigoMoneda = moneda.Codigo,
+                SimboloMoneda = moneda.Simbolo,
+                ClienteNombre = cliente.Nombre + " " + cliente.Apellido,
+                VehiculoDescripcion = vehiculo.Marca + " " + vehiculo.Modelo + " · " + vehiculo.Placa,
                 Monto = pago.Monto,
                 TasaCambioAplicada = pago.TasaCambioAplicada,
                 MontoMonedaLocal = pago.MontoMonedaLocal,
@@ -87,9 +95,13 @@ public sealed class PagosController : BaseApiController
                 FechaRegistro = pago.FechaRegistro,
                 FechaActualizacion = pago.FechaActualizacion
             })
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((search.PageNumber - 1) * search.PageSize)
+            .Take(search.PageSize)
             .ToListAsync(cancellationToken);
+
+        Response.Headers.Append("X-Total-Count", total.ToString());
+        Response.Headers.Append("X-Page-Number", search.PageNumber.ToString());
+        Response.Headers.Append("X-Page-Size", search.PageSize.ToString());
 
         return Ok(
             Success<IEnumerable<PagoResponseDto>>(
@@ -105,31 +117,7 @@ public sealed class PagosController : BaseApiController
     {
         var idEmpresa = GetEmpresaId();
 
-        var pago = await (
-            from item in _context.Pagos.AsNoTracking()
-            join moneda in _context.Monedas.AsNoTracking()
-                on item.IdMoneda equals moneda.IdMoneda
-            where item.IdPago == id &&
-                  item.IdEmpresa == idEmpresa
-            select new PagoResponseDto
-            {
-                IdPago = item.IdPago,
-                IdRenta = item.IdRenta,
-                IdMetodoPago = item.IdMetodoPago,
-                IdEstado = item.IdEstado,
-                IdMoneda = item.IdMoneda,
-                CodigoMoneda = moneda.Codigo,
-                Monto = item.Monto,
-                TasaCambioAplicada = item.TasaCambioAplicada,
-                MontoMonedaLocal = item.MontoMonedaLocal,
-                FechaPago = item.FechaPago,
-                Referencia = item.Referencia,
-                Observaciones = item.Observaciones,
-                Activo = item.Activo,
-                FechaRegistro = item.FechaRegistro,
-                FechaActualizacion = item.FechaActualizacion
-            })
-            .FirstOrDefaultAsync(cancellationToken);
+        var pago = await LoadResponse(id, idEmpresa, cancellationToken);
 
         if (pago is null)
         {
@@ -171,20 +159,31 @@ public sealed class PagosController : BaseApiController
 
         var pagos = await (
             from pago in _context.Pagos.AsNoTracking()
-            join moneda in _context.Monedas.AsNoTracking()
-                on pago.IdMoneda equals moneda.IdMoneda
+            join moneda in _context.Monedas.AsNoTracking() on pago.IdMoneda equals moneda.IdMoneda
+            join metodo in _context.MetodosPago.AsNoTracking() on pago.IdMetodoPago equals metodo.IdMetodoPago
+            join estado in _context.Estados.AsNoTracking() on pago.IdEstado equals estado.IdEstado
+            join renta in _context.Rentas.AsNoTracking() on pago.IdRenta equals renta.IdRenta
+            join cliente in _context.Clientes.AsNoTracking() on renta.IdCliente equals cliente.IdCliente
+            join vehiculo in _context.Vehiculos.AsNoTracking() on renta.IdVehiculo equals vehiculo.IdVehiculo
             where pago.IdEmpresa == idEmpresa &&
                   pago.IdRenta == idRenta &&
-                  pago.Activo
+                  pago.Activo && renta.IdEmpresa == idEmpresa &&
+                  cliente.IdEmpresa == idEmpresa && vehiculo.IdEmpresa == idEmpresa
             orderby pago.FechaPago descending
             select new PagoResponseDto
             {
                 IdPago = pago.IdPago,
                 IdRenta = pago.IdRenta,
                 IdMetodoPago = pago.IdMetodoPago,
+                MetodoPagoNombre = metodo.Nombre,
                 IdEstado = pago.IdEstado,
+                EstadoCodigo = estado.Codigo,
+                EstadoNombre = estado.Nombre,
                 IdMoneda = pago.IdMoneda,
                 CodigoMoneda = moneda.Codigo,
+                SimboloMoneda = moneda.Simbolo,
+                ClienteNombre = cliente.Nombre + " " + cliente.Apellido,
+                VehiculoDescripcion = vehiculo.Marca + " " + vehiculo.Modelo + " · " + vehiculo.Placa,
                 Monto = pago.Monto,
                 TasaCambioAplicada = pago.TasaCambioAplicada,
                 MontoMonedaLocal = pago.MontoMonedaLocal,
@@ -205,12 +204,16 @@ public sealed class PagosController : BaseApiController
 
     // POST: api/pagos
     [HttpPost]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = "ADMIN,SUPADMIN")]
     public async Task<ActionResult<ApiResponse<PagoResponseDto>>> Create(
         [FromBody] PagoCreateDto request,
         CancellationToken cancellationToken = default)
     {
         var idEmpresa = GetEmpresaId();
+
+        var requestError = PagoValidator.Validate(request);
+        if (requestError is not null)
+            return BadRequest(Failure<PagoResponseDto>(requestError));
 
         var validation = await ValidateRequest(
             request,
@@ -269,27 +272,29 @@ public sealed class PagosController : BaseApiController
         _context.Pagos.Add(pago);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var response = Map(
-            pago,
-            validation.CurrencyCode!);
+        var response = await LoadResponse(pago.IdPago, idEmpresa, cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),
             new { id = pago.IdPago },
             Success(
-                response,
+                response!,
                 "Pago registrado correctamente."));
     }
 
     // PUT: api/pagos/5
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = "ADMIN,SUPADMIN")]
     public async Task<ActionResult<ApiResponse<PagoResponseDto>>> Update(
         int id,
         [FromBody] PagoUpdateDto request,
         CancellationToken cancellationToken = default)
     {
         var idEmpresa = GetEmpresaId();
+
+        var requestError = PagoValidator.Validate(request);
+        if (requestError is not null)
+            return BadRequest(Failure<PagoResponseDto>(requestError));
 
         var pago = await _context.Pagos
             .FirstOrDefaultAsync(
@@ -308,7 +313,8 @@ public sealed class PagosController : BaseApiController
         var validation = await ValidateRequest(
             request,
             idEmpresa,
-            cancellationToken);
+            cancellationToken,
+            id);
 
         if (!validation.IsValid)
         {
@@ -356,13 +362,13 @@ public sealed class PagosController : BaseApiController
 
         return Ok(
             Success(
-                Map(pago, validation.CurrencyCode!),
+                (await LoadResponse(pago.IdPago, idEmpresa, cancellationToken))!,
                 "Pago actualizado correctamente."));
     }
 
     // DELETE: api/pagos/5
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = "ADMIN,SUPADMIN")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(
         int id,
         CancellationToken cancellationToken = default)
@@ -407,7 +413,7 @@ public sealed class PagosController : BaseApiController
 
     // PATCH: api/pagos/5/restaurar
     [HttpPatch("{id:int}/restaurar")]
-    [Authorize(Roles = "Admin,ADMIN,SUPADMIN,SuperUsuario")]
+    [Authorize(Roles = "ADMIN,SUPADMIN")]
     public async Task<ActionResult<ApiResponse<PagoResponseDto>>> Restore(
         int id,
         CancellationToken cancellationToken = default)
@@ -450,6 +456,24 @@ public sealed class PagosController : BaseApiController
                     "La moneda del pago no existe o está inactiva."));
         }
 
+        var restoreValidation = await ValidateRequest(
+            new PagoCreateDto
+            {
+                IdRenta = pago.IdRenta,
+                IdMetodoPago = pago.IdMetodoPago,
+                IdMoneda = pago.IdMoneda,
+                Monto = pago.Monto,
+                TasaCambioAplicada = pago.TasaCambioAplicada,
+                FechaPago = pago.FechaPago,
+                Referencia = pago.Referencia,
+                Observaciones = pago.Observaciones
+            },
+            idEmpresa,
+            cancellationToken);
+
+        if (!restoreValidation.IsValid)
+            return Conflict(Failure<PagoResponseDto>(restoreValidation.ErrorMessage!));
+
         pago.Activo = true;
         pago.FechaActualizacion = DateTime.UtcNow;
 
@@ -457,13 +481,13 @@ public sealed class PagosController : BaseApiController
 
         return Ok(
             Success(
-                Map(pago, codigoMoneda),
+                (await LoadResponse(pago.IdPago, idEmpresa, cancellationToken))!,
                 "Pago restaurado correctamente."));
     }
 
     // GET: api/pagos/renta/5/resumen
     [HttpGet("renta/{idRenta:int}/resumen")]
-    public async Task<ActionResult<ApiResponse<object>>> GetSummary(
+    public async Task<ActionResult<ApiResponse<PagoSummaryDto>>> GetSummary(
         int idRenta,
         CancellationToken cancellationToken = default)
     {
@@ -480,7 +504,7 @@ public sealed class PagosController : BaseApiController
         if (renta is null)
         {
             return NotFound(
-                Failure<object>(
+                Failure<PagoSummaryDto>(
                     "No se encontró la renta solicitada."));
         }
 
@@ -500,7 +524,7 @@ public sealed class PagosController : BaseApiController
             totalRentaMonedaLocal - totalPagadoMonedaLocal,
             0m);
 
-        var resumen = new
+        var resumen = new PagoSummaryDto
         {
             IdRenta = idRenta,
             TotalRentaMonedaLocal = totalRentaMonedaLocal,
@@ -514,7 +538,7 @@ public sealed class PagosController : BaseApiController
         };
 
         return Ok(
-            Success<object>(
+            Success(
                 resumen,
                 "Resumen de pagos obtenido correctamente."));
     }
@@ -522,21 +546,29 @@ public sealed class PagosController : BaseApiController
     private async Task<PaymentValidationResult> ValidateRequest(
         PagoCreateDto request,
         int idEmpresa,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? excludedPaymentId = null)
     {
-        var rentaExiste = await _context.Rentas
-            .AsNoTracking()
-            .AnyAsync(
-                renta =>
-                    renta.IdRenta == request.IdRenta &&
-                    renta.IdEmpresa == idEmpresa,
-                cancellationToken);
+        var renta = await (
+            from item in _context.Rentas.AsNoTracking()
+            join estado in _context.Estados.AsNoTracking()
+                on item.IdEstado equals estado.IdEstado
+            where item.IdRenta == request.IdRenta &&
+                  item.IdEmpresa == idEmpresa
+            select new
+            {
+                item.TotalMonedaLocal,
+                EstadoCodigo = estado.Codigo
+            }).FirstOrDefaultAsync(cancellationToken);
 
-        if (!rentaExiste)
+        if (renta is null)
         {
             return PaymentValidationResult.Invalid(
                 "La renta no existe o no pertenece a la empresa.");
         }
+
+        if (renta.EstadoCodigo.Equals("CANCELADA", StringComparison.OrdinalIgnoreCase))
+            return PaymentValidationResult.Invalid("No se pueden registrar pagos en una renta cancelada.");
 
         var metodoPagoExiste = await _context.MetodosPago
             .AsNoTracking()
@@ -581,6 +613,20 @@ public sealed class PagosController : BaseApiController
                 "Debe indicar una tasa de cambio válida.");
         }
 
+        var tasa = CalculateExchangeRate(codigoMoneda, request.TasaCambioAplicada);
+        var montoLocal = CalculateLocalAmount(request.Monto, tasa);
+        var pagado = await _context.Pagos.AsNoTracking()
+            .Where(item => item.IdEmpresa == idEmpresa &&
+                           item.IdRenta == request.IdRenta &&
+                           item.Activo &&
+                           (!excludedPaymentId.HasValue || item.IdPago != excludedPaymentId.Value))
+            .SumAsync(item => (decimal?)item.MontoMonedaLocal, cancellationToken) ?? 0m;
+
+        var balance = Math.Max(renta.TotalMonedaLocal - pagado, 0m);
+        if (montoLocal > balance)
+            return PaymentValidationResult.Invalid(
+                $"El pago excede el balance pendiente de {balance:N2} DOP.");
+
         return PaymentValidationResult.Valid(codigoMoneda);
     }
 
@@ -615,29 +661,44 @@ public sealed class PagosController : BaseApiController
         return value.Trim();
     }
 
-    private static PagoResponseDto Map(
-        Pago pago,
-        string codigoMoneda)
-    {
-        return new PagoResponseDto
-        {
-            IdPago = pago.IdPago,
-            IdRenta = pago.IdRenta,
-            IdMetodoPago = pago.IdMetodoPago,
-            IdEstado = pago.IdEstado,
-            IdMoneda = pago.IdMoneda,
-            CodigoMoneda = codigoMoneda,
-            Monto = pago.Monto,
-            TasaCambioAplicada = pago.TasaCambioAplicada,
-            MontoMonedaLocal = pago.MontoMonedaLocal,
-            FechaPago = pago.FechaPago,
-            Referencia = pago.Referencia,
-            Observaciones = pago.Observaciones,
-            Activo = pago.Activo,
-            FechaRegistro = pago.FechaRegistro,
-            FechaActualizacion = pago.FechaActualizacion
-        };
-    }
+    private Task<PagoResponseDto?> LoadResponse(
+        int idPago,
+        int idEmpresa,
+        CancellationToken cancellationToken) =>
+        (from pago in _context.Pagos.AsNoTracking()
+         join moneda in _context.Monedas.AsNoTracking() on pago.IdMoneda equals moneda.IdMoneda
+         join metodo in _context.MetodosPago.AsNoTracking() on pago.IdMetodoPago equals metodo.IdMetodoPago
+         join estado in _context.Estados.AsNoTracking() on pago.IdEstado equals estado.IdEstado
+         join renta in _context.Rentas.AsNoTracking() on pago.IdRenta equals renta.IdRenta
+         join cliente in _context.Clientes.AsNoTracking() on renta.IdCliente equals cliente.IdCliente
+         join vehiculo in _context.Vehiculos.AsNoTracking() on renta.IdVehiculo equals vehiculo.IdVehiculo
+         where pago.IdPago == idPago && pago.IdEmpresa == idEmpresa &&
+               renta.IdEmpresa == idEmpresa && cliente.IdEmpresa == idEmpresa &&
+               vehiculo.IdEmpresa == idEmpresa
+         select new PagoResponseDto
+         {
+             IdPago = pago.IdPago,
+             IdRenta = pago.IdRenta,
+             IdMetodoPago = pago.IdMetodoPago,
+             MetodoPagoNombre = metodo.Nombre,
+             IdEstado = pago.IdEstado,
+             EstadoCodigo = estado.Codigo,
+             EstadoNombre = estado.Nombre,
+             IdMoneda = pago.IdMoneda,
+             CodigoMoneda = moneda.Codigo,
+             SimboloMoneda = moneda.Simbolo,
+             ClienteNombre = cliente.Nombre + " " + cliente.Apellido,
+             VehiculoDescripcion = vehiculo.Marca + " " + vehiculo.Modelo + " · " + vehiculo.Placa,
+             Monto = pago.Monto,
+             TasaCambioAplicada = pago.TasaCambioAplicada,
+             MontoMonedaLocal = pago.MontoMonedaLocal,
+             FechaPago = pago.FechaPago,
+             Referencia = pago.Referencia,
+             Observaciones = pago.Observaciones,
+             Activo = pago.Activo,
+             FechaRegistro = pago.FechaRegistro,
+             FechaActualizacion = pago.FechaActualizacion
+         }).FirstOrDefaultAsync(cancellationToken);
 
     private static ApiResponse<T> Success<T>(
         T data,

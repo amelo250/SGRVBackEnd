@@ -67,9 +67,26 @@ namespace SGRVBackEnd.Controllers.CatalogosController
             }
 
             [HttpGet("metodos-pago")]
-            public async Task<IActionResult> GetMetodosPago()
+            public async Task<ActionResult<ApiResponse<IEnumerable<CatalogOptionDto>>>> GetMetodosPago(
+                CancellationToken cancellationToken = default)
             {
-                return Ok(await _context.MetodosPago.Where(x => x.Activo).ToListAsync());
+                var data = await _context.MetodosPago.AsNoTracking()
+                    .Where(x => x.Activo)
+                    .OrderBy(x => x.Nombre)
+                    .Select(x => new CatalogOptionDto
+                    {
+                        Id = x.IdMetodoPago,
+                        Code = x.Codigo,
+                        Name = x.Nombre
+                    })
+                    .ToListAsync(cancellationToken);
+
+                return Ok(new ApiResponse<IEnumerable<CatalogOptionDto>>
+                {
+                    Success = true,
+                    Message = "Métodos de pago obtenidos correctamente.",
+                    Data = data
+                });
             }
 
             [HttpGet("combustibles")]
