@@ -11,6 +11,8 @@ using SGRVBackEnd.Services.Reservations;
 using SGRVBackEnd.Mappings;
 using SGRVBackEnd.Services.Gastos;
 using SGRVBackEnd.Services.Vehiculos;
+using SGRVBackEnd.Services.Accesorios;
+using SGRVBackEnd.Services.FotosVehiculo;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +23,8 @@ builder.Services.AddAutoMapper(_ => { }, typeof(RentaProfile));
 builder.Services.AddScoped<IReservationAvailabilityService, ReservationAvailabilityService>();
 builder.Services.AddScoped<IGastoService, GastoService>();
 builder.Services.AddScoped<IVehiculoResumenService, VehiculoResumenService>();
+builder.Services.AddScoped<IAccesorioService, AccesorioService>();
+builder.Services.AddScoped<IFotoVehiculoService, FotoVehiculoService>();
 
 // Entity Framework Core + SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
