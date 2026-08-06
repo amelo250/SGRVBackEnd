@@ -105,6 +105,10 @@ namespace SGRVBackEnd.Data
                     .WithMany()
                     .HasForeignKey(x => x.IdRenta)
                     .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.Empresa)
+    .WithMany()
+    .HasForeignKey(x => x.IdEmpresa)
+    .OnDelete(DeleteBehavior.Restrict);
             });
             modelBuilder.Entity<Models.Vehiculo.Vehiculo>(entity =>
             {

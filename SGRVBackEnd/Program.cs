@@ -9,6 +9,7 @@ using SGRVBackEnd.Data;
 using System.Text;
 using SGRVBackEnd.Services.Reservations;
 using SGRVBackEnd.Mappings;
+using SGRVBackEnd.Services.Gastos;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,7 @@ builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(_ => { }, typeof(RentaProfile));
 builder.Services.AddScoped<IReservationAvailabilityService, ReservationAvailabilityService>();
+builder.Services.AddScoped<IGastoService, GastoService>();
 
 // Entity Framework Core + SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
