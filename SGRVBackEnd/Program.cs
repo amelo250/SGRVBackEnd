@@ -10,6 +10,7 @@ using System.Text;
 using SGRVBackEnd.Services.Reservations;
 using SGRVBackEnd.Mappings;
 using SGRVBackEnd.Services.Gastos;
+using SGRVBackEnd.Services.Vehiculos;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,7 @@ builder.Services.AddControllers();
 builder.Services.AddAutoMapper(_ => { }, typeof(RentaProfile));
 builder.Services.AddScoped<IReservationAvailabilityService, ReservationAvailabilityService>();
 builder.Services.AddScoped<IGastoService, GastoService>();
+builder.Services.AddScoped<IVehiculoResumenService, VehiculoResumenService>();
 
 // Entity Framework Core + SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")

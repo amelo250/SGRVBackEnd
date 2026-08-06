@@ -7,6 +7,7 @@ using SGRVBackEnd.Enums;
 using SGRVBackEnd.Models.Vehiculo;
 using SGRVBackEnd.Shared;
 using SGRVBackEnd.Helpers;
+using SGRVBackEnd.Services.Vehiculos;
 
 namespace SGRVBackEnd.Controllers;
 
@@ -16,8 +17,15 @@ namespace SGRVBackEnd.Controllers;
 public sealed class VehiculosController : BaseApiController
 {
     private readonly AppDbContext _context;
+    private readonly IVehiculoResumenService _resumenService;
 
-    public VehiculosController(AppDbContext context) => _context = context;
+    public VehiculosController(
+        AppDbContext context,
+        IVehiculoResumenService resumenService)
+    {
+        _context = context;
+        _resumenService = resumenService;
+    }
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<VehiculoDto>>>> GetAll(
@@ -46,6 +54,25 @@ public sealed class VehiculosController : BaseApiController
         return vehiculo is null
             ? NotFound(Failure<VehiculoDto>("No se encontró el vehículo solicitado."))
             : Ok(Success(vehiculo, "Vehículo obtenido correctamente."));
+    }
+
+    [HttpGet("{id:int}/resumen-financiero")]
+    public async Task<ActionResult<ApiResponse<VehiculoResumenFinancieroDto>>>
+        GetResumenFinanciero(
+            int id,
+            CancellationToken cancellationToken = default)
+    {
+        var resumen = await _resumenService.GetAsync(
+            id,
+            GetEmpresaId(),
+            cancellationToken);
+
+        return resumen is null
+            ? NotFound(Failure<VehiculoResumenFinancieroDto>(
+                "No se encontró el vehículo solicitado."))
+            : Ok(Success(
+                resumen,
+                "Resumen financiero obtenido correctamente."));
     }
 
     [HttpGet("disponibles")]
