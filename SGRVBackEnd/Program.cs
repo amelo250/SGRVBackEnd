@@ -24,6 +24,7 @@ builder.Services.AddAutoMapper(_ => { }, typeof(RentaProfile));
 builder.Services.AddScoped<IReservationAvailabilityService, ReservationAvailabilityService>();
 builder.Services.AddScoped<IGastoService, GastoService>();
 builder.Services.AddScoped<IVehiculoResumenService, VehiculoResumenService>();
+builder.Services.AddScoped<IVehiculoListadoService, VehiculoListadoService>();
 builder.Services.AddScoped<IAccesorioService, AccesorioService>();
 builder.Services.AddScoped<IFotoVehiculoService, FotoVehiculoService>();
 builder.Services.AddScoped<IConfiguracionCatalogoService, ConfiguracionCatalogoService>();

@@ -18,28 +18,37 @@ public sealed class VehiculosController : BaseApiController
 {
     private readonly AppDbContext _context;
     private readonly IVehiculoResumenService _resumenService;
+    private readonly IVehiculoListadoService _listadoService;
 
     public VehiculosController(
         AppDbContext context,
-        IVehiculoResumenService resumenService)
+        IVehiculoResumenService resumenService,
+        IVehiculoListadoService listadoService)
     {
         _context = context;
         _resumenService = resumenService;
+        _listadoService = listadoService;
     }
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<VehiculoDto>>>> GetAll(
-        [FromQuery] bool incluirInactivos = false,
+        [FromQuery] VehiculoSearchDto search,
         CancellationToken cancellationToken = default)
     {
-        var idEmpresa = GetEmpresaId();
-        var query = _context.Vehiculos.AsNoTracking().Where(x => x.IdEmpresa == idEmpresa);
-        if (!incluirInactivos) query = query.Where(x => x.Activo);
-
-        var data = await query.OrderBy(x => x.Marca).ThenBy(x => x.Modelo)
-            .Select(x => Map(x)).ToListAsync(cancellationToken);
+        var data = await _listadoService.GetAllAsync(
+            GetEmpresaId(), search, cancellationToken);
 
         return Ok(Success<IEnumerable<VehiculoDto>>(data, "Vehículos obtenidos correctamente."));
+    }
+
+    [HttpGet("marcas")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<string>>>> GetMarcas(
+        CancellationToken cancellationToken = default)
+    {
+        var data = await _listadoService.GetMarcasAsync(
+            GetEmpresaId(), cancellationToken);
+        return Ok(Success<IEnumerable<string>>(
+            data, "Marcas obtenidas correctamente."));
     }
 
     [HttpGet("{id:int}")]
