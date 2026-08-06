@@ -14,6 +14,7 @@ using SGRVBackEnd.Services.Vehiculos;
 using SGRVBackEnd.Services.Accesorios;
 using SGRVBackEnd.Services.FotosVehiculo;
 using SGRVBackEnd.Services.Configuracion;
+using SGRVBackEnd.Services.DocumentosCliente;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +29,7 @@ builder.Services.AddScoped<IVehiculoListadoService, VehiculoListadoService>();
 builder.Services.AddScoped<IAccesorioService, AccesorioService>();
 builder.Services.AddScoped<IFotoVehiculoService, FotoVehiculoService>();
 builder.Services.AddScoped<IConfiguracionCatalogoService, ConfiguracionCatalogoService>();
+builder.Services.AddScoped<IDocumentoClienteService, DocumentoClienteService>();
 
 // Entity Framework Core + SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
