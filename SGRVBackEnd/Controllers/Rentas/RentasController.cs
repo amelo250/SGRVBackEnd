@@ -126,7 +126,6 @@ public sealed class RentasController : BaseApiController
             {
                 IdRenta = rental.IdRenta,
                 IdVehiculo = rental.IdVehiculo,
-                NumeroContrato = string.Empty,
                 Empresa = new RentaEntregaEmpresaDto
                 {
                     NombreComercial = company.NombreComercial,
@@ -178,7 +177,6 @@ public sealed class RentasController : BaseApiController
                 "No se encontró la renta solicitada."));
 
         data.NumeroContrato = $"R-{data.IdRenta:D6}";
-
         data.Pagos = await (
             from payment in _context.Pagos.AsNoTracking()
             join method in _context.MetodosPago.AsNoTracking()
@@ -227,7 +225,6 @@ public sealed class RentasController : BaseApiController
         var preparation = await PrepareRental(
             request.IdCliente, request.IdVehiculo,
             request.FechaInicio.UtcDateTime, request.FechaFin.UtcDateTime,
-            request.PrecioPorDiaPactado,
             request.Impuestos, request.Descuentos, request.Deposito,
             request.TasaCambioAplicada, idEmpresa, null, null, cancellationToken);
 
@@ -281,7 +278,6 @@ public sealed class RentasController : BaseApiController
         var preparation = await PrepareRental(
             reservation.IdCliente, reservation.IdVehiculo,
             reservation.FechaInicio, reservation.FechaFin,
-            request.PrecioPorDiaPactado,
             request.Impuestos, request.Descuentos, request.Deposito,
             request.TasaCambioAplicada, idEmpresa, null, idReservacion, cancellationToken);
 
@@ -353,7 +349,6 @@ public sealed class RentasController : BaseApiController
         var preparation = await PrepareRental(
             request.IdCliente, request.IdVehiculo,
             request.FechaInicio.UtcDateTime, request.FechaFin.UtcDateTime,
-            request.PrecioPorDiaPactado,
             request.Impuestos, request.Descuentos, request.Deposito,
             request.TasaCambioAplicada, idEmpresa, id, entity.IdReservacion,
             cancellationToken);
@@ -514,7 +509,6 @@ public sealed class RentasController : BaseApiController
         int vehicleId,
         DateTime startUtc,
         DateTime endUtc,
-        decimal? agreedPricePerDay,
         decimal taxes,
         decimal discounts,
         decimal deposit,
@@ -548,9 +542,8 @@ public sealed class RentasController : BaseApiController
             RentalConstants.LocalCurrencyCode, StringComparison.OrdinalIgnoreCase)
             ? 1m
             : requestedRate;
-        var pricePerDay = agreedPricePerDay ?? vehicle.PrecioPorDia;
         var amountError = RentaValidator.ValidateAmounts(
-            pricePerDay, taxes, discounts, deposit, exchangeRate);
+            vehicle.PrecioPorDia, taxes, discounts, deposit, exchangeRate);
         if (amountError is not null) return RentalPreparation.Invalid(amountError);
 
         int? providerId = null;
@@ -593,13 +586,13 @@ public sealed class RentasController : BaseApiController
             return RentalPreparation.Invalid("No existe el estado RENTA/ACTIVA.");
 
         var days = RentaValidator.CalculateDays(startUtc, endUtc);
-        var subtotal = RentaValidator.RoundMoney(pricePerDay * days);
+        var subtotal = RentaValidator.RoundMoney(vehicle.PrecioPorDia * days);
         if (discounts > subtotal + taxes)
             return RentalPreparation.Invalid("El descuento no puede superar el subtotal más impuestos.");
         var total = RentaValidator.RoundMoney(subtotal + taxes - discounts);
 
         return RentalPreparation.Valid(
-            activeStateId.Value, pricePerDay, days, subtotal, total,
+            activeStateId.Value, vehicle.PrecioPorDia, days, subtotal, total,
             vehicle.IdMonedaTarifa, exchangeRate,
             RentaValidator.RoundMoney(total * exchangeRate), providerId, agreementId);
     }

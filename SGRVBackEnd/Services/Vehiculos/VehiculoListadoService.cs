@@ -34,6 +34,7 @@ public sealed class VehiculoListadoService : IVehiculoListadoService
         command.CommandText = $"""
             SELECT v.IdVehiculo,v.IdEstado,v.IdCombustible,v.IdTransmision,v.IdTipo,
                    v.TipoPropiedad,v.IdProveedorVehiculo,v.IdMonedaTarifa,
+                   m.Codigo AS MonedaCodigo,m.Simbolo AS MonedaSimbolo,
                    v.Marca,v.Modelo,v.Anio,v.Placa,v.VIN,v.Color,v.Kilometraje,
                    v.PrecioPorDia,v.DepositoCombustible,v.Descripcion,v.Activo,
                    v.FechaCreacion,t.nombre AS TipoNombre,
@@ -41,6 +42,7 @@ public sealed class VehiculoListadoService : IVehiculoListadoService
               FROM dbo.Vehiculos AS v
               LEFT JOIN dbo.Tipos AS t ON t.IdTipo = v.IdTipo
               LEFT JOIN dbo.Combustibles AS c ON c.IdCombustible = v.IdCombustible
+              INNER JOIN dbo.Monedas AS m ON m.IdMoneda = v.IdMonedaTarifa
               OUTER APPLY
               (
                   SELECT TOP (1) f.Url
@@ -111,6 +113,8 @@ public sealed class VehiculoListadoService : IVehiculoListadoService
         IdProveedorVehiculo = reader.IsDBNull(reader.GetOrdinal("IdProveedorVehiculo"))
             ? null : reader.GetInt32(reader.GetOrdinal("IdProveedorVehiculo")),
         IdMonedaTarifa = reader.GetInt32(reader.GetOrdinal("IdMonedaTarifa")),
+        MonedaCodigo = reader.GetString(reader.GetOrdinal("MonedaCodigo")),
+        MonedaSimbolo = reader.GetString(reader.GetOrdinal("MonedaSimbolo")),
         Marca = reader.GetString(reader.GetOrdinal("Marca")),
         Modelo = reader.GetString(reader.GetOrdinal("Modelo")),
         Anio = reader.GetInt32(reader.GetOrdinal("Anio")),

@@ -11,6 +11,8 @@ public class VehiculoDto
     public TipoPropiedadVehiculo TipoPropiedad { get; set; }
     public int? IdProveedorVehiculo { get; set; }
     public int IdMonedaTarifa { get; set; }
+    public string MonedaCodigo { get; set; } = string.Empty;
+    public string MonedaSimbolo { get; set; } = string.Empty;
     public string? TipoNombre { get; set; }
     public string? CombustibleNombre { get; set; }
     public string? FotoPortadaUrl { get; set; }

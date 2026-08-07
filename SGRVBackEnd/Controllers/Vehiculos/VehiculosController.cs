@@ -56,9 +56,16 @@ public sealed class VehiculosController : BaseApiController
         int id, CancellationToken cancellationToken = default)
     {
         var idEmpresa = GetEmpresaId();
-        var vehiculo = await _context.Vehiculos.AsNoTracking()
-            .Where(x => x.IdVehiculo == id && x.IdEmpresa == idEmpresa)
-            .Select(x => Map(x)).FirstOrDefaultAsync(cancellationToken);
+        var row = await (
+            from vehicle in _context.Vehiculos.AsNoTracking()
+            join currency in _context.Monedas.AsNoTracking()
+                on vehicle.IdMonedaTarifa equals currency.IdMoneda
+            where vehicle.IdVehiculo == id && vehicle.IdEmpresa == idEmpresa
+            select new { Vehicle = vehicle, currency.Codigo, currency.Simbolo })
+            .FirstOrDefaultAsync(cancellationToken);
+        var vehiculo = row is null
+            ? null
+            : Map(row.Vehicle, row.Codigo, row.Simbolo);
 
         return vehiculo is null
             ? NotFound(Failure<VehiculoDto>("No se encontró el vehículo solicitado."))
@@ -93,10 +100,18 @@ public sealed class VehiculosController : BaseApiController
         if (idEstadoDisponible is null)
             return BadRequest(Failure<IEnumerable<VehiculoDto>>("No existe el estado VEHICULO/DISPONIBLE."));
 
-        var data = await _context.Vehiculos.AsNoTracking()
-            .Where(x => x.IdEmpresa == idEmpresa && x.Activo && x.IdEstado == idEstadoDisponible)
-            .OrderBy(x => x.Marca).ThenBy(x => x.Modelo)
-            .Select(x => Map(x)).ToListAsync(cancellationToken);
+        var rows = await (
+            from vehicle in _context.Vehiculos.AsNoTracking()
+            join currency in _context.Monedas.AsNoTracking()
+                on vehicle.IdMonedaTarifa equals currency.IdMoneda
+            where vehicle.IdEmpresa == idEmpresa && vehicle.Activo &&
+                  vehicle.IdEstado == idEstadoDisponible
+            orderby vehicle.Marca, vehicle.Modelo
+            select new { Vehicle = vehicle, currency.Codigo, currency.Simbolo })
+            .ToListAsync(cancellationToken);
+        var data = rows
+            .Select(x => Map(x.Vehicle, x.Codigo, x.Simbolo))
+            .ToList();
 
         return Ok(Success<IEnumerable<VehiculoDto>>(data, "Vehículos disponibles obtenidos correctamente."));
     }
@@ -155,7 +170,7 @@ public sealed class VehiculosController : BaseApiController
 
         _context.Vehiculos.Add(vehiculo);
         await _context.SaveChangesAsync(cancellationToken);
-        var result = Map(vehiculo);
+        var result = await MapWithCurrencyAsync(vehiculo, cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = vehiculo.IdVehiculo },
             Success(result, "Vehículo creado correctamente."));
@@ -193,7 +208,9 @@ public sealed class VehiculosController : BaseApiController
         vehiculo.Descripcion = request.Descripcion?.Trim() ?? string.Empty;
 
         await _context.SaveChangesAsync(cancellationToken);
-        return Ok(Success(Map(vehiculo), "Vehículo actualizado correctamente."));
+        return Ok(Success(
+            await MapWithCurrencyAsync(vehiculo, cancellationToken),
+            "Vehículo actualizado correctamente."));
     }
 
     [HttpPut("{id:int}/estado")]
@@ -213,7 +230,9 @@ public sealed class VehiculosController : BaseApiController
 
         vehiculo.IdEstado = request.IdEstado;
         await _context.SaveChangesAsync(cancellationToken);
-        return Ok(Success(Map(vehiculo), "Estado actualizado correctamente."));
+        return Ok(Success(
+            await MapWithCurrencyAsync(vehiculo, cancellationToken),
+            "Estado actualizado correctamente."));
     }
 
     [HttpDelete("{id:int}")]
@@ -284,7 +303,21 @@ public sealed class VehiculosController : BaseApiController
     private static ApiResponse<T> Failure<T>(string message) =>
         new() { Success = false, Message = message };
 
-    private static VehiculoDto Map(Vehiculo x) => new()
+    private async Task<VehiculoDto> MapWithCurrencyAsync(
+        Vehiculo vehicle,
+        CancellationToken cancellationToken)
+    {
+        var currency = await _context.Monedas.AsNoTracking()
+            .Where(x => x.IdMoneda == vehicle.IdMonedaTarifa)
+            .Select(x => new { x.Codigo, x.Simbolo })
+            .FirstAsync(cancellationToken);
+        return Map(vehicle, currency.Codigo, currency.Simbolo);
+    }
+
+    private static VehiculoDto Map(
+        Vehiculo x,
+        string currencyCode = "",
+        string currencySymbol = "") => new()
     {
         IdVehiculo = x.IdVehiculo,
         IdEstado = x.IdEstado,
@@ -294,6 +327,8 @@ public sealed class VehiculosController : BaseApiController
         TipoPropiedad = x.TipoPropiedad,
         IdProveedorVehiculo = x.IdProveedorVehiculo,
         IdMonedaTarifa = x.IdMonedaTarifa,
+        MonedaCodigo = currencyCode,
+        MonedaSimbolo = currencySymbol,
         Marca = x.Marca,
         Modelo = x.Modelo,
         Anio = x.Anio,
