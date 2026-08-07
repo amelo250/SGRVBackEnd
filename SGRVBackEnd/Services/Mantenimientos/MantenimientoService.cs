@@ -71,22 +71,64 @@ public sealed class MantenimientoService : IMantenimientoService
     }
 
     public async Task<MantenimientoResponseDto> CreateAsync(
-        int idEmpresa, MantenimientoCreateDto request, CancellationToken cancellationToken)
+    int idEmpresa,
+    MantenimientoCreateDto request,
+    CancellationToken cancellationToken)
     {
         await using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        await ValidateRelatedAsync(connection, idEmpresa, request, cancellationToken);
+
+        await ValidateRelatedAsync(
+            connection,
+            idEmpresa,
+            request,
+            cancellationToken);
+
         await using var command = connection.CreateCommand();
+
         command.CommandText = """
-            INSERT INTO dbo.Mantenimientos
-                (IdVehiculo, IdTipoMantenimiento, Fecha, Taller, Kilometraje, Costo, Observacion)
-            OUTPUT INSERTED.IdMantenimiento
-            VALUES (@IdVehiculo, @IdTipo, @Fecha, @Taller, @Kilometraje, @Costo, @Observacion);
-            """;
+        INSERT INTO dbo.Mantenimientos
+            (
+                IdEmpresa,
+                IdVehiculo,
+                IdTipoMantenimiento,
+                Fecha,
+                Taller,
+                Kilometraje,
+                Costo,
+                Observacion
+            )
+        OUTPUT INSERTED.IdMantenimiento
+        VALUES
+            (
+                @IdEmpresa,
+                @IdVehiculo,
+                @IdTipo,
+                @Fecha,
+                @Taller,
+                @Kilometraje,
+                @Costo,
+                @Observacion
+            );
+        """;
+
+        command.Parameters.Add(
+            "@IdEmpresa",
+            SqlDbType.Int
+        ).Value = idEmpresa;
+
         AddWriteParameters(command, request);
-        var id = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
-        return await LoadAsync(connection, id, idEmpresa, cancellationToken)
-            ?? throw new InvalidOperationException("No fue posible recuperar el mantenimiento creado.");
+
+        var idMantenimiento = Convert.ToInt32(
+            await command.ExecuteScalarAsync(cancellationToken));
+
+        return await LoadAsync(
+            connection,
+            idMantenimiento,
+            idEmpresa,
+            cancellationToken)
+            ?? throw new InvalidOperationException(
+                "No fue posible recuperar el mantenimiento creado.");
     }
 
     public async Task<MantenimientoResponseDto?> UpdateAsync(

@@ -208,7 +208,7 @@ public sealed class VehiculosController : BaseApiController
         if (vehiculo is null) return NotFound(Failure<VehiculoDto>("No se encontró el vehículo solicitado."));
 
         var estadoValido = await _context.Estados.AsNoTracking().AnyAsync(x =>
-            x.IdEstado == request.IdEstado && x.Categoria == "VEHICULO" && x.Activo, cancellationToken);
+            x.IdEstado == request.IdEstado && x.Categoria == "VEHICULOS" && x.Activo, cancellationToken);
         if (!estadoValido) return BadRequest(Failure<VehiculoDto>("El estado no corresponde a vehículos."));
 
         vehiculo.IdEstado = request.IdEstado;
@@ -265,7 +265,7 @@ public sealed class VehiculosController : BaseApiController
             return "El combustible indicado no existe o está inactivo.";
         if (!await _context.Transmisiones.AsNoTracking().AnyAsync(x => x.IdTransmision == request.IdTransmision && x.Activo, cancellationToken))
             return "La transmisión indicada no existe o está inactiva.";
-        if (!await _context.Tipos.AsNoTracking().AnyAsync(x => x.IdTipo == request.IdTipo && x.Categoria == "VEHICULO" && x.Activo, cancellationToken))
+        if (!await _context.Tipos.AsNoTracking().AnyAsync(x => x.IdTipo == request.IdTipo && x.Categoria == "VEHICULOS" && x.Activo, cancellationToken))
             return "El tipo indicado no corresponde a vehículos.";
         if (!await _context.Monedas.AsNoTracking().AnyAsync(x => x.IdMoneda == request.IdMonedaTarifa && x.Activo, cancellationToken))
             return "La moneda de tarifa indicada no existe o está inactiva.";

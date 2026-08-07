@@ -13,6 +13,9 @@ public sealed class RentaUpdateDto
     public DateTimeOffset FechaInicio { get; set; }
     public DateTimeOffset FechaFin { get; set; }
 
+    [Range(typeof(decimal), "0.01", "9999999999999999.99")]
+    public decimal? PrecioPorDiaPactado { get; set; }
+
     [Range(typeof(decimal), "0", "9999999999999999.99")]
     public decimal Impuestos { get; set; }
 
