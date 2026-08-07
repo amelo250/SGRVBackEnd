@@ -11,6 +11,7 @@ using SGRVBackEnd.Models.AcuerdoVehiculoProveedor;
 using SGRVBackEnd.Models.Reservaciones;
 using SGRVBackEnd.Models.Renta;
 using SGRVBackEnd.Services.Reservations;
+using SGRVBackEnd.Services.Accesorios;
 using SGRVBackEnd.Shared;
 using SGRVBackEnd.Validators;
 
@@ -27,15 +28,18 @@ public sealed class RentasController : BaseApiController
     private readonly AppDbContext _context;
     private readonly IReservationAvailabilityService _availability;
     private readonly IMapper _mapper;
+    private readonly IAccesorioService _accesorioService;
 
     public RentasController(
         AppDbContext context,
         IReservationAvailabilityService availability,
-        IMapper mapper)
+        IMapper mapper,
+        IAccesorioService accesorioService)
     {
         _context = context;
         _availability = availability;
         _mapper = mapper;
+        _accesorioService = accesorioService;
     }
 
     [HttpGet]
@@ -96,6 +100,117 @@ public sealed class RentasController : BaseApiController
             : Ok(Success(MapResponse(row), "Renta obtenida correctamente."));
     }
 
+    [HttpGet("{id:int}/entrega")]
+    [ProducesResponseType(typeof(ApiResponse<RentaEntregaDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<RentaEntregaDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<RentaEntregaDto>>> GetEntrega(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var idEmpresa = GetEmpresaId();
+        var data = await (
+            from rental in _context.Rentas.AsNoTracking()
+            join company in _context.Empresas.AsNoTracking()
+                on rental.IdEmpresa equals company.IdEmpresa
+            join client in _context.Clientes.AsNoTracking()
+                on rental.IdCliente equals client.IdCliente
+            join vehicle in _context.Vehiculos.AsNoTracking()
+                on rental.IdVehiculo equals vehicle.IdVehiculo
+            join type in _context.Tipos.AsNoTracking()
+                on vehicle.IdTipo equals type.IdTipo
+            join currency in _context.Monedas.AsNoTracking()
+                on rental.IdMoneda equals currency.IdMoneda
+            where rental.IdRenta == id && rental.IdEmpresa == idEmpresa &&
+                  client.IdEmpresa == idEmpresa && vehicle.IdEmpresa == idEmpresa
+            select new RentaEntregaDto
+            {
+                IdRenta = rental.IdRenta,
+                IdVehiculo = rental.IdVehiculo,
+                NumeroContrato = string.Empty,
+                Empresa = new RentaEntregaEmpresaDto
+                {
+                    NombreComercial = company.NombreComercial,
+                    Rnc = company.RNC,
+                    Telefono = company.Telefono,
+                    Email = company.Email,
+                    Direccion = company.Direccion,
+                    LogoUrl = company.LogoUrl
+                },
+                Cliente = new RentaEntregaClienteDto
+                {
+                    NombreCompleto = (client.Nombre + " " + client.Apellido).Trim(),
+                    Direccion = client.Direccion,
+                    Telefono = client.Telefono,
+                    Nacionalidad = client.Nacionalidad,
+                    CedulaPasaporte = client.CedulaPasaporte,
+                    LicenciaConducir = client.LicenciaConducir,
+                    FechaVencimientoLicencia = client.FechaVencLicencia == default
+                        ? null
+                        : client.FechaVencLicencia
+                },
+                Vehiculo = new RentaEntregaVehiculoDto
+                {
+                    Marca = vehicle.Marca,
+                    Modelo = vehicle.Modelo,
+                    Anio = vehicle.Anio,
+                    Placa = vehicle.Placa,
+                    Vin = vehicle.VIN,
+                    Color = vehicle.Color,
+                    Tipo = type.nombre,
+                    Kilometraje = vehicle.Kilometraje
+                },
+                FechaInicio = rental.FechaInicio,
+                FechaFin = rental.FechaFin,
+                PrecioPorDiaPactado = rental.PrecioPorDia,
+                CantidadDias = rental.CantidadDias,
+                Subtotal = rental.Subtotal,
+                Impuestos = rental.Impuestos,
+                Descuentos = rental.Descuentos,
+                Deposito = rental.Deposito,
+                Total = rental.Total,
+                MonedaCodigo = currency.Codigo,
+                MonedaSimbolo = currency.Simbolo,
+                Observaciones = rental.Observaciones
+            }).FirstOrDefaultAsync(cancellationToken);
+
+        if (data is null)
+            return NotFound(Failure<RentaEntregaDto>(
+                "No se encontró la renta solicitada."));
+
+        data.NumeroContrato = $"R-{data.IdRenta:D6}";
+
+        data.Pagos = await (
+            from payment in _context.Pagos.AsNoTracking()
+            join method in _context.MetodosPago.AsNoTracking()
+                on payment.IdMetodoPago equals method.IdMetodoPago
+            join currency in _context.Monedas.AsNoTracking()
+                on payment.IdMoneda equals currency.IdMoneda
+            where payment.IdEmpresa == idEmpresa && payment.IdRenta == id &&
+                  payment.Activo
+            orderby payment.FechaPago
+            select new RentaEntregaPagoDto
+            {
+                FechaPago = payment.FechaPago,
+                Metodo = method.Nombre,
+                Monto = payment.Monto,
+                MonedaCodigo = currency.Codigo,
+                MontoMonedaLocal = payment.MontoMonedaLocal
+            }).ToListAsync(cancellationToken);
+
+        data.Accesorios = (await _accesorioService.GetVehicleAsync(
+                data.IdVehiculo,
+                idEmpresa,
+                cancellationToken))
+            .Select(x => new RentaEntregaAccesorioDto
+            {
+                IdAccesorio = x.IdAccesorio,
+                Nombre = x.Nombre,
+                Observaciones = x.Observaciones
+            }).ToList();
+
+        return Ok(Success(data, "Formulario de entrega obtenido correctamente."));
+    }
+
     [HttpPost]
     [Authorize(Roles = ManagerRoles)]
     [ProducesResponseType(typeof(ApiResponse<RentaResponseDto>), StatusCodes.Status201Created)]
@@ -112,6 +227,7 @@ public sealed class RentasController : BaseApiController
         var preparation = await PrepareRental(
             request.IdCliente, request.IdVehiculo,
             request.FechaInicio.UtcDateTime, request.FechaFin.UtcDateTime,
+            request.PrecioPorDiaPactado,
             request.Impuestos, request.Descuentos, request.Deposito,
             request.TasaCambioAplicada, idEmpresa, null, null, cancellationToken);
 
@@ -165,6 +281,7 @@ public sealed class RentasController : BaseApiController
         var preparation = await PrepareRental(
             reservation.IdCliente, reservation.IdVehiculo,
             reservation.FechaInicio, reservation.FechaFin,
+            request.PrecioPorDiaPactado,
             request.Impuestos, request.Descuentos, request.Deposito,
             request.TasaCambioAplicada, idEmpresa, null, idReservacion, cancellationToken);
 
@@ -236,6 +353,7 @@ public sealed class RentasController : BaseApiController
         var preparation = await PrepareRental(
             request.IdCliente, request.IdVehiculo,
             request.FechaInicio.UtcDateTime, request.FechaFin.UtcDateTime,
+            request.PrecioPorDiaPactado,
             request.Impuestos, request.Descuentos, request.Deposito,
             request.TasaCambioAplicada, idEmpresa, id, entity.IdReservacion,
             cancellationToken);
@@ -396,6 +514,7 @@ public sealed class RentasController : BaseApiController
         int vehicleId,
         DateTime startUtc,
         DateTime endUtc,
+        decimal? agreedPricePerDay,
         decimal taxes,
         decimal discounts,
         decimal deposit,
@@ -429,8 +548,9 @@ public sealed class RentasController : BaseApiController
             RentalConstants.LocalCurrencyCode, StringComparison.OrdinalIgnoreCase)
             ? 1m
             : requestedRate;
+        var pricePerDay = agreedPricePerDay ?? vehicle.PrecioPorDia;
         var amountError = RentaValidator.ValidateAmounts(
-            vehicle.PrecioPorDia, taxes, discounts, deposit, exchangeRate);
+            pricePerDay, taxes, discounts, deposit, exchangeRate);
         if (amountError is not null) return RentalPreparation.Invalid(amountError);
 
         int? providerId = null;
@@ -473,13 +593,13 @@ public sealed class RentasController : BaseApiController
             return RentalPreparation.Invalid("No existe el estado RENTA/ACTIVA.");
 
         var days = RentaValidator.CalculateDays(startUtc, endUtc);
-        var subtotal = RentaValidator.RoundMoney(vehicle.PrecioPorDia * days);
+        var subtotal = RentaValidator.RoundMoney(pricePerDay * days);
         if (discounts > subtotal + taxes)
             return RentalPreparation.Invalid("El descuento no puede superar el subtotal más impuestos.");
         var total = RentaValidator.RoundMoney(subtotal + taxes - discounts);
 
         return RentalPreparation.Valid(
-            activeStateId.Value, vehicle.PrecioPorDia, days, subtotal, total,
+            activeStateId.Value, pricePerDay, days, subtotal, total,
             vehicle.IdMonedaTarifa, exchangeRate,
             RentaValidator.RoundMoney(total * exchangeRate), providerId, agreementId);
     }
