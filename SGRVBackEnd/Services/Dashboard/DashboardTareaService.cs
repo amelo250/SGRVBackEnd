@@ -19,6 +19,133 @@ public sealed class DashboardTareaService : IDashboardTareaService
             ?? throw new InvalidOperationException("No existe DefaultConnection.");
     }
 
+    public async Task<DashboardResumenResponseDto> GetResumenAsync(
+        int idEmpresa,
+        DateTime fechaLocal,
+        CancellationToken cancellationToken = default)
+    {
+        var hoy = DateTime.SpecifyKind(fechaLocal.Date, DateTimeKind.Unspecified);
+        var manana = hoy.AddDays(1);
+        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+
+        var reservasHoy = await _context.Reservaciones.AsNoTracking()
+            .CountAsync(x => x.IdEmpresa == idEmpresa &&
+                x.FechaInicio >= hoy && x.FechaInicio < manana, cancellationToken);
+
+        var vehiculosAlquilados = await (
+            from renta in _context.Rentas.AsNoTracking()
+            join estado in _context.Estados.AsNoTracking() on renta.IdEstado equals estado.IdEstado
+            where renta.IdEmpresa == idEmpresa && estado.Categoria == RentalConstants.Category &&
+                  estado.Codigo == RentalConstants.Active
+            select renta.IdVehiculo).Distinct().CountAsync(cancellationToken);
+
+        var pagosMes = await _context.Pagos.AsNoTracking()
+            .Where(x => x.IdEmpresa == idEmpresa && x.Activo &&
+                x.FechaPago >= inicioMes && x.FechaPago < manana)
+            .Select(x => new { x.FechaPago, x.MontoMonedaLocal })
+            .ToListAsync(cancellationToken);
+
+        var clientesActivos = await _context.Clientes.AsNoTracking()
+            .CountAsync(x => x.IdEmpresa == idEmpresa && x.Activo, cancellationToken);
+
+        var reservasRecientes = await (
+            from reserva in _context.Reservaciones.AsNoTracking()
+            join cliente in _context.Clientes.AsNoTracking() on reserva.IdCliente equals cliente.IdCliente
+            join vehiculo in _context.Vehiculos.AsNoTracking() on reserva.IdVehiculo equals vehiculo.IdVehiculo
+            join estado in _context.Estados.AsNoTracking() on reserva.IdEstado equals estado.IdEstado
+            where reserva.IdEmpresa == idEmpresa && cliente.IdEmpresa == idEmpresa &&
+                  vehiculo.IdEmpresa == idEmpresa
+            orderby reserva.FechaCreacion descending
+            select new DashboardReservaRecienteDto
+            {
+                IdReservacion = reserva.IdReservacion,
+                Cliente = cliente.Nombre + " " + cliente.Apellido,
+                Vehiculo = vehiculo.Marca + " " + vehiculo.Modelo + " (" + vehiculo.Placa + ")",
+                FechaInicio = reserva.FechaInicio,
+                EstadoCodigo = estado.Codigo,
+                EstadoNombre = estado.Nombre
+            }).Take(5).ToListAsync(cancellationToken);
+
+        var categorias = await (
+            from vehiculo in _context.Vehiculos.AsNoTracking()
+            join tipo in _context.Tipos.AsNoTracking() on vehiculo.IdTipo equals tipo.IdTipo
+            where vehiculo.IdEmpresa == idEmpresa && vehiculo.Activo
+            group vehiculo by tipo.nombre into grupo
+            orderby grupo.Count() descending
+            select new { Categoria = grupo.Key, Cantidad = grupo.Count() })
+            .ToListAsync(cancellationToken);
+        var totalVehiculos = categorias.Sum(x => x.Cantidad);
+
+        var actividadRentas = await (
+            from renta in _context.Rentas.AsNoTracking()
+            join cliente in _context.Clientes.AsNoTracking() on renta.IdCliente equals cliente.IdCliente
+            where renta.IdEmpresa == idEmpresa && cliente.IdEmpresa == idEmpresa
+            orderby renta.FechaCreacion descending
+            select new DashboardActividadDto
+            {
+                Tipo = "RENTA",
+                IdEntidad = renta.IdRenta,
+                Titulo = "Renta registrada",
+                Detalle = cliente.Nombre + " " + cliente.Apellido,
+                Fecha = renta.FechaCreacion
+            }).Take(5).ToListAsync(cancellationToken);
+
+        var actividadReservas = await (
+            from reserva in _context.Reservaciones.AsNoTracking()
+            join cliente in _context.Clientes.AsNoTracking() on reserva.IdCliente equals cliente.IdCliente
+            where reserva.IdEmpresa == idEmpresa && cliente.IdEmpresa == idEmpresa
+            orderby reserva.FechaCreacion descending
+            select new DashboardActividadDto
+            {
+                Tipo = "RESERVACION",
+                IdEntidad = reserva.IdReservacion,
+                Titulo = "Reservación registrada",
+                Detalle = cliente.Nombre + " " + cliente.Apellido,
+                Fecha = reserva.FechaCreacion
+            }).Take(5).ToListAsync(cancellationToken);
+
+        var pagosRecientes = await _context.Pagos.AsNoTracking()
+            .Where(x => x.IdEmpresa == idEmpresa && x.Activo)
+            .OrderByDescending(x => x.FechaPago)
+            .Select(x => new { x.IdPago, x.MontoMonedaLocal, x.FechaPago })
+            .Take(5).ToListAsync(cancellationToken);
+        var actividadPagos = pagosRecientes.Select(x => new DashboardActividadDto
+        {
+            Tipo = "PAGO",
+            IdEntidad = x.IdPago,
+            Titulo = "Pago registrado",
+            Detalle = x.MontoMonedaLocal.ToString("N2") + " DOP",
+            Fecha = x.FechaPago
+        });
+
+        return new DashboardResumenResponseDto
+        {
+            ReservasHoy = reservasHoy,
+            VehiculosAlquilados = vehiculosAlquilados,
+            IngresosHoy = pagosMes.Where(x => x.FechaPago >= hoy).Sum(x => x.MontoMonedaLocal),
+            ClientesActivos = clientesActivos,
+            IngresosMes = pagosMes.Sum(x => x.MontoMonedaLocal),
+            IngresosDiarios = Enumerable.Range(0, hoy.Day)
+                .Select(offset => inicioMes.AddDays(offset))
+                .Select(fecha => new DashboardIngresoDiarioDto
+                {
+                    Fecha = fecha,
+                    Monto = pagosMes.Where(x => x.FechaPago.Date == fecha.Date)
+                        .Sum(x => x.MontoMonedaLocal)
+                }).ToList(),
+            ReservasRecientes = reservasRecientes,
+            VehiculosPorCategoria = categorias.Select(x => new DashboardCategoriaVehiculoDto
+            {
+                Categoria = x.Categoria,
+                Cantidad = x.Cantidad,
+                Porcentaje = totalVehiculos == 0 ? 0 :
+                    Math.Round(x.Cantidad * 100m / totalVehiculos, 1)
+            }).ToList(),
+            ActividadReciente = actividadRentas.Concat(actividadReservas)
+                .Concat(actividadPagos).OrderByDescending(x => x.Fecha).Take(6).ToList()
+        };
+    }
+
     public async Task<DashboardTareasResponseDto> GetAsync(
         int idEmpresa,
         DateTime fechaLocal,
